@@ -17,10 +17,9 @@
 
 
 <script>
-// ======= CONFIG: fill these from Supabase Settings → API =======
+  
 const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-// ==============================================================
 
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -81,4 +80,5 @@ supplier: $('#cat-supplier').value.trim()
 };
 if(!ins.barcode) return alert('Barcode required');
 const {error} = await sb.from('items').upsert(ins, { onConflict: 'user_id,barcode' });
+
 </html>
