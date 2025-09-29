@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On‑hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
+</div>
+</div>
+
+
+<!-- Transactions -->
+<div id="view-trans" class="card" style="display:none">
+<div style="display:flex; gap:8px; align-items:center"><h3>Transactions</h3><button class="right" id="btnReload">Reload</button></div>
+<div style="overflow:auto;max-height:420px">
+<table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Staff</th></tr></thead><tbody></tbody></table>
+</div>
+</div>
+
+
+</div>
+
+
+<script>
+// ======= CONFIG: fill these from Supabase Settings → API =======
+const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+// ==============================================================
+
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentUser = null;
+
+
+// UI helpers
+const $ = (s)=>document.querySelector(s);
+function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
+function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ document.getElementById(x).style.display = (x===id)?'block':'none';}); }
+function setSignedInUI(signed){
+$('#authCard').style.display = signed?'none':'block';
+setTabsVisible(signed);
+$('#status').textContent = signed? ('Signed in: '+(currentUser?.email||'')) : 'Not signed in';
+$('#btnSignOut').style.display = signed?'inline-block':'none';
+if(signed){ $('#scan-barcode').focus(); }
+}
+
+
+// Build tabs once
+(function buildTabs(){
+const tabs=[
+{id:'view-scan', label:'Scan'},
+{id:'view-catalog', label:'Catalog'},
+{id:'view-reorder', label:'Reorder'},
+{id:'view-trans', label:'Transactions'}
+];
+const c=$('#tabs'); c.innerHTML='';
+tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
+})();
+
+
+// Auth
+async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
+async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
+async function signOut(){ await sb.auth.signOut(); }
+
+
+document.getElementById('btnGoogle').addEventListener('click', async ()=>{
+const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+if(error) alert(error.message);
+});
+
+
+sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
+
+
+// Data Ops
+async function upsertItem(){
+if(!currentUser) return;
+const ins = {
+user_id: currentUser.id,
+barcode: $('#cat-barcode').value.trim(),
+item_name: $('#cat-name').value.trim(),
+pack_size: $('#cat-pack').value.trim(),
+min_stock: Number($('#cat-min').value||0),
+supplier: $('#cat-supplier').value.trim()
+};
+if(!ins.barcode) return alert('Barcode required');
+const {error} = await sb.from('items').upsert(ins, { onConflict: 'user_id,barcode' });
+</html>
