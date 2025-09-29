@@ -1,84 +1,28 @@
 <!DOCTYPE html>
-<table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On‑hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
-</div>
-</div>
-
-
-<!-- Transactions -->
-<div id="view-trans" class="card" style="display:none">
-<div style="display:flex; gap:8px; align-items:center"><h3>Transactions</h3><button class="right" id="btnReload">Reload</button></div>
-<div style="overflow:auto;max-height:420px">
-<table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Staff</th></tr></thead><tbody></tbody></table>
-</div>
-</div>
-
-
-</div>
-
-
-<script>
-  
-const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-
-
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-let currentUser = null;
-
-
-// UI helpers
-const $ = (s)=>document.querySelector(s);
-function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
-function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ document.getElementById(x).style.display = (x===id)?'block':'none';}); }
-function setSignedInUI(signed){
-$('#authCard').style.display = signed?'none':'block';
-setTabsVisible(signed);
-$('#status').textContent = signed? ('Signed in: '+(currentUser?.email||'')) : 'Not signed in';
-$('#btnSignOut').style.display = signed?'inline-block':'none';
-if(signed){ $('#scan-barcode').focus(); }
-}
-
-
-// Build tabs once
-(function buildTabs(){
-const tabs=[
-{id:'view-scan', label:'Scan'},
-{id:'view-catalog', label:'Catalog'},
-{id:'view-reorder', label:'Reorder'},
-{id:'view-trans', label:'Transactions'}
-];
-const c=$('#tabs'); c.innerHTML='';
-tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
-})();
-
-
-// Auth
-async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
-async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
-async function signOut(){ await sb.auth.signOut(); }
-
-
-document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
-if(error) alert(error.message);
-});
-
-
-sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
-
-
-// Data Ops
-async function upsertItem(){
-if(!currentUser) return;
-const ins = {
-user_id: currentUser.id,
-barcode: $('#cat-barcode').value.trim(),
-item_name: $('#cat-name').value.trim(),
-pack_size: $('#cat-pack').value.trim(),
-min_stock: Number($('#cat-min').value||0),
-supplier: $('#cat-supplier').value.trim()
-};
-if(!ins.barcode) return alert('Barcode required');
-const {error} = await sb.from('items').upsert(ins, { onConflict: 'user_id,barcode' });
-
-</html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dental Inventory (SaaS)</title>
+  <style>
+    :root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
+    header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
+    h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+    input,select,button{font:inherit}
+    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
+    button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
+    button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+    th{color:#cbd5e1}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tabs button{border-radius:999px}
+    .tabs .active{background:#1f2937}
+    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+    .camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+    @media
