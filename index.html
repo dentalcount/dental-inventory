@@ -184,6 +184,15 @@ document.getElementById('btnSignOut').addEventListener('click', async ()=>{
 
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
 
+  // sanity: show user id
+(async ()=>{
+  const { data: { session } } = await sb.auth.getSession();
+  currentUser = session?.user || null;
+  setSignedInUI(!!currentUser);
+  if(currentUser){ console.log('Signed in as', currentUser.id); }
+})();
+
+  
 // Data
 async function upsertItem(){
   if(!currentUser){ alert('Not signed in'); return; }
@@ -368,4 +377,5 @@ document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
 
