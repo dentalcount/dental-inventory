@@ -13,7 +13,7 @@
     .row{display:flex;gap:12px;flex-wrap:wrap}
     .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
     input,select,button{font:inherit}
-    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:var(--text)}
+    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
     button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
     button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
     button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
@@ -28,7 +28,7 @@
     @media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- ZXing fallback for iOS/Safari camera scanning -->
+  <!-- ZXing fallback for iOS camera scanning -->
   <script src="https://unpkg.com/@zxing/library@latest"></script>
 </head>
 <body>
@@ -43,7 +43,10 @@
     </div>
   </div>
 </header>
+
 <div class="wrap">
+
+  <!-- Auth -->
   <div class="card" id="authCard">
     <h3>Sign in / Sign up</h3>
     <div class="row">
@@ -58,8 +61,10 @@
     </div>
   </div>
 
+  <!-- Tabs -->
   <div class="tabs" id="tabs" style="display:none"></div>
 
+  <!-- Scan -->
   <div id="view-scan" class="card" style="display:none">
     <h3>Scan / Log transaction</h3>
     <div class="row">
@@ -70,13 +75,16 @@
           <div style="flex:1 1 160px"><label>Mode</label>
             <select id="scan-mode"><option value="IN">Receive (IN)</option><option value="OUT">Use (OUT)</option></select>
           </div>
+          <div style="flex:1 1 160px" id="price-wrap"><label>Unit Price (IN)</label><input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50"></div>
         </div>
-        <div style=\"display:flex; gap:8px; margin-top:8px; align-items:center\">
-          <button class=\"primary\" id=\"btnAddTx\">Add Transaction<\/button>
-          <button id=\"btnCamera\">Use Camera (beta)<\/button>
-          <button id=\"btnStopCam\" class=\"warn\" style=\"display:none\">Stop Camera<\/button>
-          <label class=\"muted\" style=\"display:flex;gap:6px;align-items:center;margin-left:8px\"><input type=\"checkbox\" id=\"auto-add\" checked> Auto‑add when scanned<\/label>
-        <\/div>
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
+          <button class="primary" id="btnAddTx">Add Transaction</button>
+          <button id="btnCamera">Use Camera (beta)</button>
+          <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
+          <label class="muted" style="display:flex;gap:6px;align-items:center;margin-left:8px">
+            <input type="checkbox" id="auto-add" checked> Auto-add when scanned
+          </label>
+        </div>
         <div class="camera" id="camWrap" style="display:none; margin-top:8px"><video id="video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>
       </div>
       <div style="flex:1 1 240px">
@@ -86,8 +94,9 @@
     </div>
   </div>
 
+  <!-- Catalog -->
   <div id="view-catalog" class="card" style="display:none">
-    <div style="display:flex; align-items:center; gap:8px"><h3>Catalog</h3><span class="muted" style="margin-left:auto">On‑hand comes from your transactions</span></div>
+    <div style="display:flex; align-items:center; gap:8px"><h3>Catalog</h3><span class="muted" style="margin-left:auto">On-hand comes from your transactions</span></div>
     <div class="row">
       <div style="flex:2 1 260px"><label>Barcode</label><input id="cat-barcode" placeholder="9300632083503"></div>
       <div style="flex:3 1 260px"><label>Item Name</label><input id="cat-name" placeholder="Colgate Optic White"></div>
@@ -100,21 +109,23 @@
       <button id="btnClearItem">Clear</button>
     </div>
     <div style="overflow:auto;max-height:360px;margin-top:8px">
-      <table id="tbl-inv"><thead><tr><th>Barcode</th><th>Item</th><th>Pack</th><th>On‑hand</th><th>Min</th><th>Supplier</th><th></th></tr></thead><tbody></tbody></table>
+      <table id="tbl-inv"><thead><tr><th>Barcode</th><th>Item</th><th>Pack</th><th>On-hand</th><th>Min</th><th>Supplier</th><th>Last Price</th><th></th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
+  <!-- Reorder -->
   <div id="view-reorder" class="card" style="display:none">
     <div style="display:flex; gap:8px; align-items:center"><h3>Reorder</h3><button class="right" id="btnPrint">Print Reorder Sheet</button></div>
     <div style="overflow:auto;max-height:320px">
-      <table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On‑hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
+      <table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On-hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
+  <!-- Transactions -->
   <div id="view-trans" class="card" style="display:none">
     <div style="display:flex; gap:8px; align-items:center"><h3>Transactions</h3><button class="right" id="btnReload">Reload</button></div>
     <div style="overflow:auto;max-height:420px">
-      <table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Staff</th></tr></thead><tbody></tbody></table>
+      <table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Staff</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 
@@ -129,6 +140,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser = null;
 
+// Helpers
 const $ = (s)=>document.querySelector(s);
 function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
 function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ document.getElementById(x).style.display = (x===id)?'block':'none';}); }
@@ -140,6 +152,7 @@ function setSignedInUI(signed){
   if(signed){ $('#scan-barcode').focus(); }
 }
 
+// Tabs
 (function buildTabs(){
   const tabs=[
     {id:'view-scan', label:'Scan'},
@@ -151,6 +164,7 @@ function setSignedInUI(signed){
   tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
 })();
 
+// Auth
 async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
 async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
 async function signOut(){ await sb.auth.signOut(); }
@@ -162,9 +176,15 @@ document.getElementById('btnGoogle').addEventListener('click', async ()=>{
   });
   if (error) alert(error.message);
 });
+document.getElementById('btnSignOut').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  // Force reload to clear UI
+  window.location.href = 'https://dentalcount.github.io/dental-inventory/';
+});
 
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
 
+// Data
 async function upsertItem(){
   if(!currentUser) return;
   const ins = {
@@ -186,12 +206,33 @@ async function addTx(){
   if(!currentUser) return; const bc=$('#scan-barcode').value.trim(); if(!bc) return alert('Scan a barcode');
   const qty=Number($('#scan-qty').value||1); if(qty<=0) return alert('Qty > 0');
   const action=$('#scan-mode').value;
+  const priceValEl = document.getElementById('scan-price');
+  const priceVal = priceValEl ? Number(priceValEl.value) : NaN;
+
+  // ensure item exists
   await sb.from('items').upsert({user_id: currentUser.id, barcode: bc});
-  const {error} = await sb.from('transactions').insert({ user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: ''});
+
+  const insertObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
+  if(action==='IN' && !isNaN(priceVal) && priceVal>0){ insertObj.unit_price = priceVal; }
+
+  const {error} = await sb.from('transactions').insert(insertObj);
   if(error) return alert(error.message);
-  $('#scan-barcode').value=''; $('#scan-qty').value=1; $('#scan-barcode').focus();
+
+  if(action==='IN' && insertObj.unit_price){
+    await sb.from('items').update({ last_purchase_price: insertObj.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
+  }
+
+  $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceValEl) priceValEl.value=''; $('#scan-barcode').focus();
   await Promise.all([loadItems(), loadTx()]);
 }
+
+function togglePriceVisibility(){
+  const wrap = document.getElementById('price-wrap');
+  if(!wrap) return;
+  wrap.style.display = (document.getElementById('scan-mode').value==='IN') ? 'block' : 'none';
+}
+document.getElementById('scan-mode').addEventListener('change', togglePriceVisibility);
+setTimeout(togglePriceVisibility, 0);
 
 async function loadItems(){
   const {data, error} = await sb.from('items').select('*').order('item_name', {ascending:true});
@@ -200,7 +241,7 @@ async function loadItems(){
   const oh = await onHandMap();
   for(const it of data){
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${it.pack_size||''}</td><td>${oh[it.barcode]||0}</td><td>${it.min_stock||0}</td><td>${it.supplier||''}</td><td><button data-bc="${it.barcode}">Delete</button></td>`;
+    tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${it.pack_size||''}</td><td>${oh[it.barcode]||0}</td><td>${it.min_stock||0}</td><td>${it.supplier||''}</td><td>${(it.last_purchase_price!=null? ('$'+Number(it.last_purchase_price).toFixed(2)) : '')}</td><td><button data-bc="${it.barcode}">Delete</button></td>`;
     tbody.appendChild(tr);
   }
   tbody.querySelectorAll('button').forEach(btn=>{
@@ -209,10 +250,12 @@ async function loadItems(){
   await buildReorder(oh, data);
   const bc=$('#scan-barcode').value.trim();
   const m = data.find(x=>x.barcode===bc);
-  $('#match').innerHTML = m? `<b>${m.item_name||'—'}</b><br><span class="muted">Pack: ${m.pack_size||'-'} • Supplier: ${m.supplier||'-'}</span><br>On‑hand: <b>${(oh[bc]||0)}</b>` : '—';
+  $('#match').innerHTML = m? `<b>${m.item_name||'—'}</b><br><span class="muted">Pack: ${m.pack_size||'-'} • Supplier: ${m.supplier||'-'}</span><br>On-hand: <b>${(oh[bc]||0)}</b>` : '—';
+
+  // Low-stock alerts
   for(const it of data){
     const cur = oh[it.barcode]||0; const min = Number(it.min_stock||0);
-    if(min>0 && cur<min){ alert(`⚠️ Low stock: ${it.item_name||it.barcode} (On‑hand: ${cur}, Min: ${min})`); }
+    if(min>0 && cur<min){ alert(`⚠️ Low stock: ${it.item_name||it.barcode} (On-hand: ${cur}, Min: ${min})`); }
   }
 }
 
@@ -223,7 +266,7 @@ async function loadTx(){
   const items = await listItemsMap();
   for(const t of data){
     const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${new Date(t.ts).toLocaleString()}</td><td><span class="tag">${t.action}</span></td><td>${t.barcode}</td><td>${items[t.barcode]?.item_name||''}</td><td>${t.quantity}</td><td>${t.staff||''}</td>`;
+    tr.innerHTML = `<td>${new Date(t.ts).toLocaleString()}</td><td><span class="tag">${t.action}</span></td><td>${t.barcode}</td><td>${items[t.barcode]?.item_name||''}</td><td>${t.quantity}</td><td>${t.unit_price!=null? ('$'+Number(t.unit_price).toFixed(2)) : ''}</td><td>${t.staff||''}</td>`;
     tbody.appendChild(tr);
   }
 }
@@ -235,12 +278,10 @@ async function onHandMap(){
   for(const r of data){ if(!map[r.barcode]) map[r.barcode]=0; map[r.barcode]+= (r.action==='IN'? +r.quantity : -r.quantity); }
   return map;
 }
-
 async function listItemsMap(){
   const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier');
   const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m;
 }
-
 async function buildReorder(oh, items){
   const tbody=$('#tbl-reo tbody'); tbody.innerHTML='';
   for(const it of items){
@@ -253,8 +294,8 @@ async function buildReorder(oh, items){
   }
 }
 
+// Camera + ZXing fallback with auto-add
 let stream=null; let zxingReader=null; const supportsBarcode = 'BarcodeDetector' in window;
-// auto-add support
 let lastScanText = ''; const AUTO_ADD_DELAY = 600;
 function maybeAutoAdd(text){
   const cb = document.getElementById('auto-add');
@@ -268,22 +309,18 @@ function maybeAutoAdd(text){
 }
 async function startCamera(){
   try{
-    // Open camera
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
     const v=$('#video'); v.srcObject=stream; await v.play();
     $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
 
     if(supportsBarcode){
-      // Fast native API (Chrome/Android)
       const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
       const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value = val; maybeAutoAdd(val); } }catch(e){} requestAnimationFrame(loop); };
       loop();
     } else if(window.ZXing){
-      // ZXing fallback (iOS/Safari)
       zxingReader = new ZXing.BrowserMultiFormatReader();
       await zxingReader.decodeFromVideoDevice(null, 'video', (result, err) => {
         if(result){ const val = result.getText(); $('#scan-barcode').value = val; maybeAutoAdd(val); }
-        // ignore continuous decode errors while scanning
       });
     } else {
       alert('Camera scanning not supported on this browser. Use a Bluetooth scanner.');
@@ -291,24 +328,25 @@ async function startCamera(){
   }catch(e){ alert('Camera error: '+e.message); }
 }
 function stopCamera(){
-  try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){}
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none';
+  try { if (zxingReader) { zxingReader.reset(); zxingReader = null; } } catch(e){}
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $('#camWrap').style.display = 'none';
+  $('#btnStopCam').style.display = 'none';
+}
 
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
-// Hook up events
-$('#btnSignUp').addEventListener('click', signUp);
-$('#btnSignIn').addEventListener('click', signIn);
-$('#btnSignOut').addEventListener('click', signOut);
-$('#btnUpsertItem').addEventListener('click', upsertItem);
-$('#btnClearItem').addEventListener('click', ()=>{ ['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''); });
-$('#btnAddTx').addEventListener('click', addTx);
-$('#scan-barcode').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addTx(); }});
-$('#btnReload').addEventListener('click', loadAll);
-$('#btnPrint').addEventListener('click', ()=>window.print());
-$('#btnCamera').addEventListener('click', startCamera);
-$('#btnStopCam').addEventListener('click', stopCamera);
+// Events
+document.getElementById('btnSignUp').addEventListener('click', signUp);
+document.getElementById('btnSignIn').addEventListener('click', signIn);
+document.getElementById('btnUpsertItem').addEventListener('click', upsertItem);
+document.getElementById('btnClearItem').addEventListener('click', ()=>{ ['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''); });
+document.getElementById('btnAddTx').addEventListener('click', addTx);
+document.getElementById('scan-barcode').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addTx(); }});
+document.getElementById('btnReload').addEventListener('click', loadAll);
+document.getElementById('btnPrint').addEventListener('click', ()=>window.print());
+document.getElementById('btnCamera').addEventListener('click', startCamera);
+document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
