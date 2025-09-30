@@ -220,7 +220,6 @@ async function addTx(){
   try{
     console.log('[addTx] start');
 
-    // 0) sanity
     if(!currentUser){ alert('Not signed in'); console.log('[addTx] no user'); return; }
     const bc = $('#scan-barcode').value.trim();
     if(!bc){ alert('Scan a barcode'); console.log('[addTx] no barcode'); return; }
@@ -230,13 +229,19 @@ async function addTx(){
     const priceValEl = document.getElementById('scan-price');
     const priceVal = priceValEl ? Number(priceValEl.value) : NaN;
 
-    // 1) ensure item exists
+    // 1) ensure item exists (explicit conflict target)
     console.log('[addTx] upsert item…');
-    const up = await sb.from('items').upsert({ user_id: currentUser.id, barcode: bc }).select();
+    const up = await sb
+      .from('items')
+      .upsert(
+        { user_id: currentUser.id, barcode: bc },
+        { onConflict: 'user_id,barcode', ignoreDuplicates: false }
+      )
+      .select();
     if (up.error) { console.error('[addTx] upsert items error', up.error); alert('Items upsert error: ' + up.error.message + ' (status ' + up.status + ')'); return; }
     console.log('[addTx] upsert item OK');
 
-    // 2) insert tx
+    // 2) insert transaction
     const insertObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
     if (action==='IN' && !isNaN(priceVal) && priceVal>0) insertObj.unit_price = priceVal;
 
@@ -266,7 +271,6 @@ async function addTx(){
     alert('Unexpected error in Add Transaction: ' + (err?.message||err));
   }
 }
-
 
 function togglePriceVisibility(){
   const wrap = document.getElementById('price-wrap');
@@ -394,6 +398,7 @@ document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
 
 
 
