@@ -71,11 +71,12 @@
             <select id="scan-mode"><option value="IN">Receive (IN)</option><option value="OUT">Use (OUT)</option></select>
           </div>
         </div>
-        <div style="display:flex; gap:8px; margin-top:8px">
-          <button class="primary" id="btnAddTx">Add Transaction</button>
-          <button id="btnCamera">Use Camera (beta)</button>
-          <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
-        </div>
+        <div style=\"display:flex; gap:8px; margin-top:8px; align-items:center\">
+          <button class=\"primary\" id=\"btnAddTx\">Add Transaction<\/button>
+          <button id=\"btnCamera\">Use Camera (beta)<\/button>
+          <button id=\"btnStopCam\" class=\"warn\" style=\"display:none\">Stop Camera<\/button>
+          <label class=\"muted\" style=\"display:flex;gap:6px;align-items:center;margin-left:8px\"><input type=\"checkbox\" id=\"auto-add\" checked> Auto‑add when scanned<\/label>
+        <\/div>
         <div class="camera" id="camWrap" style="display:none; margin-top:8px"><video id="video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>
       </div>
       <div style="flex:1 1 240px">
@@ -253,6 +254,18 @@ async function buildReorder(oh, items){
 }
 
 let stream=null; let zxingReader=null; const supportsBarcode = 'BarcodeDetector' in window;
+// auto-add support
+let lastScanText = ''; const AUTO_ADD_DELAY = 600;
+function maybeAutoAdd(text){
+  const cb = document.getElementById('auto-add');
+  if(!cb || !cb.checked) return;
+  if(!text || text === lastScanText) return;
+  lastScanText = text;
+  const snapshot = text;
+  setTimeout(()=>{
+    if(document.getElementById('scan-barcode').value.trim() === snapshot){ addTx(); }
+  }, AUTO_ADD_DELAY);
+}
 async function startCamera(){
   try{
     // Open camera
@@ -263,13 +276,13 @@ async function startCamera(){
     if(supportsBarcode){
       // Fast native API (Chrome/Android)
       const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
-      const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ $('#scan-barcode').value=codes[0].rawValue; } }catch(e){} requestAnimationFrame(loop); };
+      const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value = val; maybeAutoAdd(val); } }catch(e){} requestAnimationFrame(loop); };
       loop();
     } else if(window.ZXing){
       // ZXing fallback (iOS/Safari)
       zxingReader = new ZXing.BrowserMultiFormatReader();
       await zxingReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-        if(result){ $('#scan-barcode').value = result.getText(); }
+        if(result){ const val = result.getText(); $('#scan-barcode').value = val; maybeAutoAdd(val); }
         // ignore continuous decode errors while scanning
       });
     } else {
