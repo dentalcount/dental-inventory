@@ -155,8 +155,11 @@ async function signIn(){ const {error} = await sb.auth.signInWithPassword({ emai
 async function signOut(){ await sb.auth.signOut(); }
 
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'https://dentalcount.github.io/dental-inventory/' } });
-  if(error) alert(error.message);
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: 'https://dentalcount.github.io/dental-inventory/' }
+  });
+  if (error) alert(error.message);
 });
 
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
@@ -275,11 +278,9 @@ async function startCamera(){
   }catch(e){ alert('Camera error: '+e.message); }
 }
 function stopCamera(){
-  try { if (zxingReader) { zxingReader.reset(); zxingReader = null; } } catch(e){}
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  $('#camWrap').style.display = 'none';
-  $('#btnStopCam').style.display = 'none';
-}
+  try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){}
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none';
 
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
@@ -298,4 +299,3 @@ $('#btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
-
