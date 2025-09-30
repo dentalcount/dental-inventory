@@ -153,7 +153,7 @@ async function signIn(){ const {error} = await sb.auth.signInWithPassword({ emai
 async function signOut(){ await sb.auth.signOut(); }
 
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'https://dentalcount.github.io/dental-inventory/' } });
   if(error) alert(error.message);
 });
 
@@ -277,3 +277,4 @@ $('#btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
