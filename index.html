@@ -78,7 +78,7 @@
           <div style="flex:1 1 160px" id="price-wrap"><label>Unit Price (IN)</label><input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50"></div>
         </div>
         <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
-          <button class="primary" id="btnAddTx">Add Transaction</button>
+          <button class="primary" id="btnAddTx" onclick="addTx()">Add Transaction</button>
           <button id="btnCamera">Use Camera (beta)</button>
           <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
           <label class="muted" style="display:flex;gap:6px;align-items:center;margin-left:8px">
@@ -216,40 +216,47 @@ async function upsertItem(){
 
 
 async function addTx(){
-  if(!currentUser){ alert('Not signed in'); return; }
+  try{
+    console.log('[addTx] start');
+    if(!currentUser){ alert('Not signed in'); return; }
 
-  const bc = $('#scan-barcode').value.trim();
-  if(!bc) return alert('Scan a barcode');
+    const bc = $('#scan-barcode').value.trim();
+    if(!bc){ alert('Scan a barcode'); return; }
 
-  const qty = Number($('#scan-qty').value||1);
-  if(!(qty>0)) return alert('Qty must be > 0');
+    const qty = Number($('#scan-qty').value||1);
+    if(!(qty>0)){ alert('Qty must be > 0'); return; }
 
-  const action = $('#scan-mode').value;
-  const priceValEl = document.getElementById('scan-price');
-  const priceVal = priceValEl ? Number(priceValEl.value) : NaN;
+    const action = $('#scan-mode').value;
+    const priceValEl = document.getElementById('scan-price');
+    const priceVal = priceValEl ? Number(priceValEl.value) : NaN;
 
-  // 1) ensure item exists
-  const up = await sb.from('items').upsert({ user_id: currentUser.id, barcode: bc }).select();
-  if (up.error) { alert('Items upsert error: ' + up.error.message + ' (status ' + up.status + ')'); return; }
+    // 1) ensure item exists
+    const up = await sb.from('items').upsert({ user_id: currentUser.id, barcode: bc }).select();
+    if (up.error) { console.error('[addTx] upsert items error', up.error); alert('Items upsert error: ' + up.error.message + ' (status ' + up.status + ')'); return; }
 
-  // 2) insert transaction
-  const insertObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
-  if (action==='IN' && !isNaN(priceVal) && priceVal>0) insertObj.unit_price = priceVal;
+    // 2) insert transaction
+    const insertObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
+    if (action==='IN' && !isNaN(priceVal) && priceVal>0) insertObj.unit_price = priceVal;
 
-  const ins = await sb.from('transactions').insert(insertObj).select();
-  if (ins.error) { alert('Tx insert error: ' + ins.error.message + ' (status ' + ins.status + ')'); return; }
+    const ins = await sb.from('transactions').insert(insertObj).select();
+    if (ins.error) { console.error('[addTx] insert tx error', ins.error); alert('Tx insert error: ' + ins.error.message + ' (status ' + ins.status + ')'); return; }
 
-  // 3) store last_purchase_price for IN
-  if (action==='IN' && insertObj.unit_price){
-    const upd = await sb.from('items')
-      .update({ last_purchase_price: insertObj.unit_price })
-      .eq('user_id', currentUser.id).eq('barcode', bc);
-    if (upd.error) { alert('Item price update error: ' + upd.error.message + ' (status ' + upd.status + ')'); }
+    // 3) store last_purchase_price for IN
+    if (action==='IN' && insertObj.unit_price){
+      const upd = await sb.from('items')
+        .update({ last_purchase_price: insertObj.unit_price })
+        .eq('user_id', currentUser.id).eq('barcode', bc);
+      if (upd.error) { console.error('[addTx] update item price error', upd.error); alert('Item price update error: ' + upd.error.message + ' (status ' + upd.status + ')'); }
+    }
+
+    $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceValEl) priceValEl.value='';
+    await Promise.all([loadItems(), loadTx()]);
+    alert('Transaction added ✔️');
+    console.log('[addTx] done');
+  }catch(err){
+    console.error('[addTx] unexpected error', err);
+    alert('Unexpected error in Add Transaction: ' + (err?.message||err));
   }
-
-  $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceValEl) priceValEl.value='';
-  await Promise.all([loadItems(), loadTx()]);
-  alert('Transaction added ✔️');
 }
 
 
@@ -377,5 +384,6 @@ document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
 
 
