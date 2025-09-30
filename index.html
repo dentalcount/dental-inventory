@@ -207,47 +207,44 @@ async function upsertItem(){
   };
   if(!ins.barcode) return alert('Barcode required');
 
-  const { data, error, status } = await sb.from('items').upsert(ins, { onConflict: 'user_id,barcode' }).select();
-  if (error) { alert('Items upsert error: ' + error.message + ' (status ' + status + ')'); return; }
-  // success
+  const res = await sb.from('items').upsert(ins, { onConflict: 'user_id,barcode' });
+  if (res.error) { alert('Items upsert error: ' + res.error.message); return; }
+
   await loadItems();
   $('#cat-name').value=''; $('#cat-pack').value=''; $('#cat-min').value=''; $('#cat-supplier').value='';
   alert('Saved to Catalog ✔️');
 }
 
 
+
 async function addTx(){
   try{
     console.log('[addTx] start');
 
-    if(!currentUser){ alert('Not signed in'); console.log('[addTx] no user'); return; }
+    if(!currentUser){ alert('Not signed in'); return; }
     const bc = $('#scan-barcode').value.trim();
-    if(!bc){ alert('Scan a barcode'); console.log('[addTx] no barcode'); return; }
+    if(!bc){ alert('Scan a barcode'); return; }
     const qty = Number($('#scan-qty').value||1);
-    if(!(qty>0)){ alert('Qty must be > 0'); console.log('[addTx] bad qty'); return; }
+    if(!(qty>0)){ alert('Qty must be > 0'); return; }
     const action = $('#scan-mode').value;
     const priceValEl = document.getElementById('scan-price');
     const priceVal = priceValEl ? Number(priceValEl.value) : NaN;
 
-    // 1) ensure item exists (explicit conflict target)
+    // 1) ensure item exists (NO .select())
     console.log('[addTx] upsert item…');
     const up = await sb
       .from('items')
-      .upsert(
-        { user_id: currentUser.id, barcode: bc },
-        { onConflict: 'user_id,barcode', ignoreDuplicates: false }
-      )
-      .select();
-    if (up.error) { console.error('[addTx] upsert items error', up.error); alert('Items upsert error: ' + up.error.message + ' (status ' + up.status + ')'); return; }
+      .upsert({ user_id: currentUser.id, barcode: bc }, { onConflict: 'user_id,barcode', ignoreDuplicates: false });
+    if (up.error) { console.error('[addTx] upsert items error', up.error); alert('Items upsert error: ' + up.error.message); return; }
     console.log('[addTx] upsert item OK');
 
-    // 2) insert transaction
+    // 2) insert transaction (NO .select())
     const insertObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
     if (action==='IN' && !isNaN(priceVal) && priceVal>0) insertObj.unit_price = priceVal;
 
     console.log('[addTx] insert tx…', insertObj);
-    const ins = await sb.from('transactions').insert(insertObj).select();
-    if (ins.error) { console.error('[addTx] insert tx error', ins.error); alert('Tx insert error: ' + ins.error.message + ' (status ' + ins.status + ')'); return; }
+    const ins = await sb.from('transactions').insert(insertObj);
+    if (ins.error) { console.error('[addTx] insert tx error', ins.error); alert('Tx insert error: ' + ins.error.message); return; }
     console.log('[addTx] insert tx OK');
 
     // 3) update last price (IN only)
@@ -256,8 +253,7 @@ async function addTx(){
       const upd = await sb.from('items')
         .update({ last_purchase_price: insertObj.unit_price })
         .eq('user_id', currentUser.id).eq('barcode', bc);
-      if (upd.error) { console.error('[addTx] update item price error', upd.error); alert('Item price update error: ' + upd.error.message + ' (status ' + upd.status + ')'); }
-      console.log('[addTx] update last price OK');
+      if (upd.error) { console.error('[addTx] update price error', upd.error); /* not fatal */ }
     }
 
     // 4) refresh UI
@@ -271,6 +267,7 @@ async function addTx(){
     alert('Unexpected error in Add Transaction: ' + (err?.message||err));
   }
 }
+
 
 function togglePriceVisibility(){
   const wrap = document.getElementById('price-wrap');
@@ -398,6 +395,7 @@ document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
 
 
 
