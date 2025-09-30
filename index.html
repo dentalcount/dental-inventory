@@ -28,6 +28,8 @@
     @media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- ZXing fallback for iOS/Safari camera scanning -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
 </head>
 <body>
 <header>
@@ -153,7 +155,7 @@ async function signIn(){ const {error} = await sb.auth.signInWithPassword({ emai
 async function signOut(){ await sb.auth.signOut(); }
 
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: 'https://dentalcount.github.io/dental-inventory/' } });
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
   if(error) alert(error.message);
 });
 
@@ -247,18 +249,36 @@ async function buildReorder(oh, items){
   }
 }
 
-let stream=null; const supportsBarcode = 'BarcodeDetector' in window;
+let stream=null; let zxingReader=null; const supportsBarcode = 'BarcodeDetector' in window;
 async function startCamera(){
-  if(!supportsBarcode){ alert('BarcodeDetector not supported on this browser. Pair a Bluetooth scanner.'); return; }
   try{
+    // Open camera
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    const v=$('#video'); v.srcObject=stream; await v.play(); $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
-    const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
-    const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ $('#scan-barcode').value=codes[0].rawValue; } }catch(e){} requestAnimationFrame(loop); };
-    loop();
+    const v=$('#video'); v.srcObject=stream; await v.play();
+    $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
+
+    if(supportsBarcode){
+      // Fast native API (Chrome/Android)
+      const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
+      const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ $('#scan-barcode').value=codes[0].rawValue; } }catch(e){} requestAnimationFrame(loop); };
+      loop();
+    } else if(window.ZXing){
+      // ZXing fallback (iOS/Safari)
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+      await zxingReader.decodeFromVideoDevice(null, 'video', (result, err) => {
+        if(result){ $('#scan-barcode').value = result.getText(); }
+        // ignore continuous decode errors while scanning
+      });
+    } else {
+      alert('Camera scanning not supported on this browser. Use a Bluetooth scanner.');
+    }
   }catch(e){ alert('Camera error: '+e.message); }
 }
-function stopCamera(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none'; }
+function stopCamera(){
+  try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){}
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none';
+} $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none'; }
 
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
@@ -277,4 +297,3 @@ $('#btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
-
