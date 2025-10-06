@@ -48,19 +48,25 @@
 <div class="wrap">
 
   <!-- Auth -->
-  <div class="card" id="authCard">
-    <h3>Sign in / Sign up</h3>
-    <div class="row">
-      <div style="flex:1 1 260px"><label>Email</label><input id="email" type="email" placeholder="you@clinic.com"></div>
-      <div style="flex:1 1 200px"><label>Password</label><input id="password" type="password" placeholder="••••••••"></div>
+<div class="card" id="authCard">
+  <h3>Sign in / Sign up</h3>
+  <div class="row">
+    <div style="flex:1 1 260px">
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@clinic.com" autocomplete="username" />
     </div>
-    <div style="display:flex; gap:8px; margin-top:8px">
-      <button class="primary" id="btnSignIn">Sign in</button>
-      <button id="btnSignUp">Create account</button>
-      <button id="btnGoogle">Sign in with Google</button>
-      <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
+    <div style="flex:1 1 200px">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
     </div>
   </div>
+  <div style="display:flex; gap:8px; margin-top:8px">
+    <button class="primary" id="btnSignIn">Sign in</button>
+    <button id="btnSignUp">Create account</button>
+    <button id="btnGoogle">Sign in with Google</button>
+    <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
+  </div>
+</div>
 
   <!-- Tabs -->
   <div class="tabs" id="tabs" style="display:none"></div>
@@ -70,14 +76,27 @@
     <h3>Scan / Log transaction</h3>
     <div class="row">
       <div style="flex:2 1 320px">
-        <div class="row">
-          <div style="flex:2 1 260px"><label>Barcode</label><input id="scan-barcode" placeholder="Focus here and scan…"></div>
-          <div style="flex:1 1 120px"><label>Qty</label><input id="scan-qty" type="number" value="1" min="1"></div>
-          <div style="flex:1 1 160px"><label>Mode</label>
-            <select id="scan-mode"><option value="IN">Receive (IN)</option><option value="OUT">Use (OUT)</option></select>
-          </div>
-          <div style="flex:1 1 160px" id="price-wrap"><label>Unit Price (IN)</label><input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50"></div>
-        </div>
+  <div class="row">
+  <div style="flex:2 1 260px">
+    <label for="scan-barcode">Barcode</label>
+    <input id="scan-barcode" placeholder="Focus here and scan…" autocomplete="off" />
+  </div>
+  <div style="flex:1 1 120px">
+    <label for="scan-qty">Qty</label>
+    <input id="scan-qty" type="number" value="1" min="1" autocomplete="off" />
+  </div>
+  <div style="flex:1 1 160px">
+    <label for="scan-mode">Mode</label>
+    <select id="scan-mode" autocomplete="off">
+      <option value="IN">Receive (IN)</option>
+      <option value="OUT">Use (OUT)</option>
+    </select>
+  </div>
+  <div style="flex:1 1 160px" id="price-wrap">
+    <label for="scan-price">Unit Price (IN)</label>
+    <input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50" autocomplete="off" />
+  </div>
+</div>
         <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
           <button class="primary" id="btnAddTx" onclick="addTx()">Add Transaction</button>
           <button id="btnCamera">Use Camera (beta)</button>
@@ -98,13 +117,29 @@
   <!-- Catalog -->
   <div id="view-catalog" class="card" style="display:none">
     <div style="display:flex; align-items:center; gap:8px"><h3>Catalog</h3><span class="muted" style="margin-left:auto">On-hand comes from your transactions</span></div>
-    <div class="row">
-      <div style="flex:2 1 260px"><label>Barcode</label><input id="cat-barcode" placeholder="9300632083503"></div>
-      <div style="flex:3 1 260px"><label>Item Name</label><input id="cat-name" placeholder="Colgate Optic White"></div>
-      <div style="flex:1 1 120px"><label>Pack</label><input id="cat-pack" placeholder="1"></div>
-      <div style="flex:1 1 120px"><label>Min Stock</label><input id="cat-min" type="number" placeholder="12"></div>
-      <div style="flex:2 1 200px"><label>Supplier</label><input id="cat-supplier" placeholder="Supplier"></div>
-    </div>
+ <div class="row">
+  <div style="flex:2 1 260px">
+    <label for="cat-barcode">Barcode</label>
+    <input id="cat-barcode" placeholder="9300632083503" autocomplete="off" />
+  </div>
+  <div style="flex:3 1 260px">
+    <label for="cat-name">Item Name</label>
+    <input id="cat-name" placeholder="Colgate Optic White" autocomplete="off" />
+  </div>
+  <div style="flex:1 1 120px">
+    <label for="cat-pack">Pack</label>
+    <input id="cat-pack" placeholder="1" autocomplete="off" />
+  </div>
+  <div style="flex:1 1 120px">
+    <label for="cat-min">Min Stock</label>
+    <input id="cat-min" type="number" placeholder="12" autocomplete="off" />
+  </div>
+  <div style="flex:2 1 200px">
+    <label for="cat-supplier">Supplier</label>
+    <input id="cat-supplier" placeholder="Supplier" autocomplete="organization" />
+  </div>
+</div>
+
     <div style="display:flex; gap:8px; margin-top:8px">
       <button class="primary" id="btnUpsertItem">Add / Update Item</button>
       <button id="btnClearItem">Clear</button>
@@ -395,6 +430,7 @@ document.getElementById('btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
+
 
 
 
