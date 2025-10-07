@@ -75,7 +75,7 @@ th{color:#cbd5e1}
     <div class="row">
       <div style="flex:2 1 320px">
         <div class="row">
-          <div style="flex:2 1 260px">
+          <div style="flex:2 1 240px">
             <label for="scan-barcode">Barcode</label>
             <input id="scan-barcode" placeholder="Focus here and scan…" autocomplete="off" />
           </div>
@@ -83,7 +83,7 @@ th{color:#cbd5e1}
             <label for="scan-qty">Qty</label>
             <input id="scan-qty" type="number" value="1" min="1" autocomplete="off" />
           </div>
-          <div style="flex:1 1 160px">
+          <div style="flex:1 1 140px">
             <label for="scan-mode">Mode</label>
             <select id="scan-mode" autocomplete="off">
               <option value="IN">Receive (IN)</option>
@@ -94,13 +94,17 @@ th{color:#cbd5e1}
             <label for="scan-price">Unit Price (IN)</label>
             <input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50" autocomplete="off" />
           </div>
+          <div style="flex:1 1 140px">
+            <label for="scan-staff">Staff</label>
+            <input id="scan-staff" placeholder="AB" maxlength="4" autocomplete="off" />
+          </div>
         </div>
         <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
           <button class="primary" id="btnAddTx">Add Transaction</button>
           <button id="btnCamera">Use Camera (beta)</button>
           <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
           <label class="muted" style="display:flex;gap:6px;align-items:center;margin-left:8px">
-            <input type="checkbox" id="auto-add"> Auto-add when scanned
+            <input type="checkbox" id="auto-add" checked> Auto-add when scanned
           </label>
         </div>
         <div class="camera" id="camWrap" style="display:none; margin-top:8px">
@@ -138,7 +142,12 @@ th{color:#cbd5e1}
   <!-- Reorder -->
   <div id="view-reorder" class="card" style="display:none">
     <div style="display:flex; gap:8px; align-items:center">
-      <h3>Reorder</h3><button class="right" id="btnPrint">Print Reorder Sheet</button>
+      <h3>Reorder</h3>
+      <div style="margin-left:auto; display:flex; gap:8px">
+        <button id="btnEmail">Email Reorder</button>
+        <button id="btnCSV">Download CSV</button>
+        <button class="right" id="btnPrint">Print Reorder Sheet</button>
+      </div>
     </div>
     <div style="overflow:auto;max-height:320px">
       <table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On-hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
@@ -162,6 +171,8 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser = null;
+let latestReorder = []; // store current reorder rows for Email/CSV
+
 const $ = (s)=>document.querySelector(s);
 function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
 function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ document.getElementById(x).style.display = (x===id)?'block':'none';}); }
@@ -173,16 +184,17 @@ function setSignedInUI(signed){
   if(signed){ $('#scan-barcode').focus(); }
 }
 
+// Tabs
 (function buildTabs(){
   const tabs=[{id:'view-scan',label:'Scan'},{id:'view-catalog',label:'Catalog'},{id:'view-reorder',label:'Reorder'},{id:'view-trans',label:'Transactions'}];
   const c=$('#tabs'); c.innerHTML='';
   tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
 })();
 
-/*** AUTH ***/
+// Auth
 async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
 async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
-async function signOut(){ try{ await sb.auth.signOut(); }finally{ location.reload(); } }
+async function signOut(){ try{ await sb.auth.signOut(); } finally { location.reload(); } }
 
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
   const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
@@ -193,12 +205,11 @@ document.getElementById('btnSignOut').addEventListener('click', signOut);
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
 (async()=>{ const { data:{ session } } = await sb.auth.getSession(); currentUser = session?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }})();
 
-/*** DATA HELPERS ***/
+// Data helpers
 async function listItemsMap(){ const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier'); const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m; }
 async function onHandMap(){ const {data,error}=await sb.from('transactions').select('action,barcode,quantity'); if(error){ alert(error.message); return {};} const map={}; for(const r of data){ map[r.barcode]=(map[r.barcode]||0)+(r.action==='IN'?+r.quantity:-r.quantity);} return map; }
-async function buildReorder(oh, items){ const tbody=$('#tbl-reo tbody'); tbody.innerHTML=''; for(const it of items){ const cur=oh[it.barcode]||0, min=Number(it.min_stock||0); if(min>0&&cur<min){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${cur}</td><td>${min}</td><td>${it.supplier||''}</td>`; tbody.appendChild(tr);} } }
 
-/*** LOADERS ***/
+// Loaders
 async function loadItems(){
   const {data,error}=await sb.from('items').select('*').order('item_name',{ascending:true});
   if(error){ alert(error.message); return; }
@@ -227,45 +238,61 @@ async function loadTx(){
   }
 }
 
+async function buildReorder(oh, items){
+  latestReorder = [];
+  const tbody=$('#tbl-reo tbody'); tbody.innerHTML='';
+  for(const it of items){
+    const cur = oh[it.barcode]||0; const min = Number(it.min_stock||0);
+    if(min>0 && cur<min){
+      latestReorder.push({ barcode: it.barcode, item: it.item_name||'', onhand: cur, min, supplier: it.supplier||'' });
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${cur}</td><td>${min}</td><td>${it.supplier||''}</td>`;
+      tbody.appendChild(tr);
+    }
+  }
+}
+
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
-/*** WRITE FLOWS ***/
+// Write flows
 async function addTx(){
   try{
-    console.log('[addTx] start');
     if(!currentUser){ alert('Not signed in'); return; }
     const bc=$('#scan-barcode').value.trim(); if(!bc){ alert('Scan a barcode'); return; }
     const qty=Number($('#scan-qty').value||1); if(!(qty>0)){ alert('Qty must be > 0'); return; }
     const action=$('#scan-mode').value;
     const priceEl=$('#scan-price'); const priceVal=priceEl?Number(priceEl.value):NaN;
+    const staff = ($('#scan-staff').value||'').trim().toUpperCase();
 
-    console.log('[addTx] insert item if missing…');
+    // insert item if missing
     const insItem=await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
     if (insItem.error){
       const msg=String(insItem.error.message||'');
-      if (insItem.error.code==='23505' || /duplicate key|unique/i.test(msg)) {
-        console.log('[addTx] item already exists');
-      } else { alert('Items insert error: '+insItem.error.message); return; }
+      if (insItem.error.code!=='23505' && !/duplicate key|unique/i.test(msg)){
+        alert('Items insert error: '+insItem.error.message); return;
+      }
     }
 
-    const tx={ user_id: currentUser.id, action, barcode: bc, quantity: qty, staff:'' };
+    const tx={ user_id: currentUser.id, action, barcode: bc, quantity: qty, staff };
     if(action==='IN' && !isNaN(priceVal) && priceVal>0) tx.unit_price=priceVal;
-    console.log('[addTx] insert tx…', tx);
+
     const insTx=await sb.from('transactions').insert(tx);
     if (insTx.error){ alert('Transaction error: '+insTx.error.message); return; }
-    console.log('[addTx] tx insert OK');
 
     if(action==='IN' && tx.unit_price){
-      const upd=await sb.from('items').update({ last_purchase_price: tx.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
-      if (upd.error) console.warn('[addTx] price update error (non-fatal)', upd.error);
+      // store last purchase price for display
+      await sb.from('items').update({ last_purchase_price: tx.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
     }
 
+    // clear fields except staff (keep for convenience)
     $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceEl) priceEl.value='';
+
     await loadAll();
     alert('Transaction added ✔️');
-  }catch(e){ console.error(e); alert('Unexpected: '+(e?.message||e)); }
+  }catch(e){ alert('Unexpected: '+(e?.message||e)); }
 }
 
+// Catalog add/update (no upsert)
 async function upsertItem(){
   if(!currentUser){ alert('Not signed in'); return; }
   const row={ user_id: currentUser.id, barcode: $('#cat-barcode').value.trim(), item_name: $('#cat-name').value.trim(), pack_size: $('#cat-pack').value.trim(), min_stock: Number($('#cat-min').value||0), supplier: $('#cat-supplier').value.trim() };
@@ -280,30 +307,70 @@ async function upsertItem(){
     } else { alert('Insert error: '+ins.error.message); return; }
   }
   await loadItems();
+  // keep barcode in place; clear the rest
   $('#cat-name').value=''; $('#cat-pack').value=''; $('#cat-min').value=''; $('#cat-supplier').value='';
   alert('Saved to Catalog ✔️');
 }
 
-/*** CAMERA (unchanged, trimmed) ***/
+// Email & CSV for reorder
+function emailReorder(){
+  if(!latestReorder.length){ alert('Nothing to reorder'); return; }
+  const clinic = currentUser?.email || 'Clinic';
+  const subject = encodeURIComponent(`${clinic} – Reorder list`);
+  const lines = ['Barcode, Item, On-hand, Min, Supplier']
+    .concat(latestReorder.map(r => `${r.barcode}, ${r.item}, ${r.onhand}, ${r.min}, ${r.supplier}`));
+  const body = encodeURIComponent(lines.join('\n'));
+  // opens a new email draft; you can set a default recipient here if you like
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+}
+
+function downloadCSV(){
+  if(!latestReorder.length){ alert('Nothing to download'); return; }
+  const header = 'Barcode,Item,On-hand,Min,Supplier';
+  const rows = latestReorder.map(r => [r.barcode, r.item, r.onhand, r.min, r.supplier]
+    .map(x => String(x).replace(/"/g,'""'))
+    .map(x => /[",\n]/.test(x) ? `"${x}"` : x)
+    .join(','));
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'reorder.csv'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Camera (auto-add respected)
 let stream=null, zxingReader=null; const supportsBarcode=('BarcodeDetector' in window);
-async function startCamera(){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); const v=$('#video'); v.srcObject=stream; await v.play(); $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
-  if(supportsBarcode){ const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']}); const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }catch(e){} requestAnimationFrame(loop); }; loop();
-  } else if(window.ZXing){ zxingReader=new ZXing.BrowserMultiFormatReader(); await zxingReader.decodeFromVideoDevice(null,'video',(result)=>{ if(result){ const val=result.getText(); $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }); }
+async function startCamera(){ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  const v=$('#video'); v.srcObject=stream; await v.play();
+  $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
+  if(supportsBarcode){
+    const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
+    const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }catch(e){} requestAnimationFrame(loop); };
+    loop();
+  } else if(window.ZXing){
+    zxingReader=new ZXing.BrowserMultiFormatReader();
+    await zxingReader.decodeFromVideoDevice(null,'video',(result)=>{ if(result){ const val=result.getText(); $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } });
+  } else {
+    alert('Camera scanning not supported on this browser. Use a Bluetooth scanner.');
+  }
 }catch(e){ alert('Camera error: '+e.message); } }
 function stopCamera(){ try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){} if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none'; }
 
-/*** EVENTS ***/
+// Events
 $('#btnSignUp').addEventListener('click', signUp);
 $('#btnSignIn').addEventListener('click', signIn);
 $('#btnUpsertItem').addEventListener('click', upsertItem);
 $('#btnClearItem').addEventListener('click', ()=>['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''));
 $('#btnAddTx').addEventListener('click', addTx);
-$('#scan-barcode').addEventListener('keydown', e=>{ if(e.key==='Enter') addTx(); });
+$('#scan-barcode').addEventListener('keydown', e=>{ if(e.key==='Enter'){ addTx(); }});
 $('#btnReload').addEventListener('click', loadAll);
 $('#btnPrint').addEventListener('click', ()=>window.print());
 $('#btnCamera').addEventListener('click', startCamera);
 $('#btnStopCam').addEventListener('click', stopCamera);
+$('#btnEmail').addEventListener('click', emailReorder);
+$('#btnCSV').addEventListener('click', downloadCSV);
 </script>
 </body>
 </html>
-
