@@ -1,35 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Dental Inventory (SaaS)</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2316a34a'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EDD%3C/text%3E%3C/svg%3E">
-<style>
-:root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
-header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
-.wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
-h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
-input,select,button{font:inherit}
-input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
-button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
-button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
-button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
-th{color:#cbd5e1}
-.tabs{display:flex;gap:8px;flex-wrap:wrap}
-.tabs button{border-radius:999px}
-.tabs .active{background:#1f2937}
-.tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
-.camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
-@media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/@zxing/library@latest"></script>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dental Inventory (SaaS)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2316a34a'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EDD%3C/text%3E%3C/svg%3E">
+  <style>
+    :root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
+    header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
+    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
+    h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+    input,select,button{font:inherit}
+    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
+    button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
+    button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
+    button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+    th{color:#cbd5e1}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .tabs button{border-radius:999px}
+    .tabs .active{background:#1f2937}
+    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+    .camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+    @media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
 </head>
 <body>
 <header>
@@ -62,6 +65,7 @@ th{color:#cbd5e1}
       <button class="primary" id="btnSignIn">Sign in</button>
       <button id="btnSignUp">Create account</button>
       <button id="btnGoogle">Sign in with Google</button>
+      <button id="btnReset" class="warn" title="Clears cached session & reloads">Reset session</button>
       <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
     </div>
   </div>
@@ -171,7 +175,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser = null;
-let latestReorder = []; // store current reorder rows for Email/CSV
+let latestReorder = [];
 
 const $ = (s)=>document.querySelector(s);
 function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
@@ -184,32 +188,46 @@ function setSignedInUI(signed){
   if(signed){ $('#scan-barcode').focus(); }
 }
 
-// Tabs
+// Build tabs
 (function buildTabs(){
   const tabs=[{id:'view-scan',label:'Scan'},{id:'view-catalog',label:'Catalog'},{id:'view-reorder',label:'Reorder'},{id:'view-trans',label:'Transactions'}];
   const c=$('#tabs'); c.innerHTML='';
   tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
 })();
 
-// Auth
+/*** AUTH ***/
 async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
 async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
-async function signOut(){ try{ await sb.auth.signOut(); } finally { location.reload(); } }
+async function signOut(){
+  try { await sb.auth.signOut(); } catch(e) {}
+  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
+  location.replace(location.origin + location.pathname + '?signed_out=' + Date.now());
+}
 
+// Google OAuth with cache-busted redirect
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
+  const redirect = location.origin + location.pathname + '?auth=' + Date.now();
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: redirect }
+  });
   if (error) alert(error.message);
 });
 document.getElementById('btnSignOut').addEventListener('click', signOut);
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
+  location.replace(location.origin + location.pathname + '?reset=' + Date.now());
+});
 
+// Keep listeners
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
 (async()=>{ const { data:{ session } } = await sb.auth.getSession(); currentUser = session?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }})();
 
-// Data helpers
+/*** DATA HELPERS ***/
 async function listItemsMap(){ const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier'); const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m; }
 async function onHandMap(){ const {data,error}=await sb.from('transactions').select('action,barcode,quantity'); if(error){ alert(error.message); return {};} const map={}; for(const r of data){ map[r.barcode]=(map[r.barcode]||0)+(r.action==='IN'?+r.quantity:-r.quantity);} return map; }
 
-// Loaders
+/*** LOADERS ***/
 async function loadItems(){
   const {data,error}=await sb.from('items').select('*').order('item_name',{ascending:true});
   if(error){ alert(error.message); return; }
@@ -254,7 +272,7 @@ async function buildReorder(oh, items){
 
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
-// Write flows
+/*** WRITES ***/
 async function addTx(){
   try{
     if(!currentUser){ alert('Not signed in'); return; }
@@ -264,7 +282,7 @@ async function addTx(){
     const priceEl=$('#scan-price'); const priceVal=priceEl?Number(priceEl.value):NaN;
     const staff = ($('#scan-staff').value||'').trim().toUpperCase();
 
-    // insert item if missing
+    // ensure item exists (ignore duplicate)
     const insItem=await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
     if (insItem.error){
       const msg=String(insItem.error.message||'');
@@ -280,11 +298,10 @@ async function addTx(){
     if (insTx.error){ alert('Transaction error: '+insTx.error.message); return; }
 
     if(action==='IN' && tx.unit_price){
-      // store last purchase price for display
       await sb.from('items').update({ last_purchase_price: tx.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
     }
 
-    // clear fields except staff (keep for convenience)
+    // clear fields except staff
     $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceEl) priceEl.value='';
 
     await loadAll();
@@ -292,7 +309,6 @@ async function addTx(){
   }catch(e){ alert('Unexpected: '+(e?.message||e)); }
 }
 
-// Catalog add/update (no upsert)
 async function upsertItem(){
   if(!currentUser){ alert('Not signed in'); return; }
   const row={ user_id: currentUser.id, barcode: $('#cat-barcode').value.trim(), item_name: $('#cat-name').value.trim(), pack_size: $('#cat-pack').value.trim(), min_stock: Number($('#cat-min').value||0), supplier: $('#cat-supplier').value.trim() };
@@ -307,12 +323,11 @@ async function upsertItem(){
     } else { alert('Insert error: '+ins.error.message); return; }
   }
   await loadItems();
-  // keep barcode in place; clear the rest
   $('#cat-name').value=''; $('#cat-pack').value=''; $('#cat-min').value=''; $('#cat-supplier').value='';
   alert('Saved to Catalog ✔️');
 }
 
-// Email & CSV for reorder
+/*** EMAIL & CSV ***/
 function emailReorder(){
   if(!latestReorder.length){ alert('Nothing to reorder'); return; }
   const clinic = currentUser?.email || 'Clinic';
@@ -320,10 +335,8 @@ function emailReorder(){
   const lines = ['Barcode, Item, On-hand, Min, Supplier']
     .concat(latestReorder.map(r => `${r.barcode}, ${r.item}, ${r.onhand}, ${r.min}, ${r.supplier}`));
   const body = encodeURIComponent(lines.join('\n'));
-  // opens a new email draft; you can set a default recipient here if you like
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
-
 function downloadCSV(){
   if(!latestReorder.length){ alert('Nothing to download'); return; }
   const header = 'Barcode,Item,On-hand,Min,Supplier';
@@ -334,13 +347,15 @@ function downloadCSV(){
   const csv = [header, ...rows].join('\n');
   const blob = new Blob([csv], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'reorder.csv'; document.body.appendChild(a); a.click(); a.remove();
+  const a = document.createElement('a'); a.href = url; a.download = 'reorder.csv'; document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
 
-// Camera (auto-add respected)
+/*** CAMERA (auto-add respected) ***/
 let stream=null, zxingReader=null; const supportsBarcode=('BarcodeDetector' in window);
+function togglePrice(){ document.getElementById('price-wrap').style.display = (document.getElementById('scan-mode').value==='IN')?'block':'none'; }
+document.getElementById('scan-mode').addEventListener('change', togglePrice); togglePrice();
+
 async function startCamera(){ try{
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
   const v=$('#video'); v.srcObject=stream; await v.play();
@@ -358,7 +373,7 @@ async function startCamera(){ try{
 }catch(e){ alert('Camera error: '+e.message); } }
 function stopCamera(){ try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){} if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none'; }
 
-// Events
+/*** EVENTS ***/
 $('#btnSignUp').addEventListener('click', signUp);
 $('#btnSignIn').addEventListener('click', signIn);
 $('#btnUpsertItem').addEventListener('click', upsertItem);
