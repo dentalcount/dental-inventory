@@ -1,36 +1,35 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dental Inventory (SaaS)</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2316a34a'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EDD%3C/text%3E%3C/svg%3E">
-   <style>
-    :root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
-    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
-    header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
-    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
-    h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
-    input,select,button{font:inherit}
-    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
-    button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
-    button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
-    button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
-    th{color:#cbd5e1}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tabs button{border-radius:999px}
-    .tabs .active{background:#1f2937}
-    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
-    .camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
-    @media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- ZXing fallback for iOS camera scanning -->
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dental Inventory (SaaS)</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2316a34a'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EDD%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
+header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
+.wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
+h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
+button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
+button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
+button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+th{color:#cbd5e1}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tabs button{border-radius:999px}
+.tabs .active{background:#1f2937}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
+.camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+@media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 </head>
 <body>
 <header>
@@ -46,27 +45,26 @@
 </header>
 
 <div class="wrap">
-
   <!-- Auth -->
-<div class="card" id="authCard">
-  <h3>Sign in / Sign up</h3>
-  <div class="row">
-    <div style="flex:1 1 260px">
-      <label for="email">Email</label>
-      <input id="email" type="email" placeholder="you@clinic.com" autocomplete="username" />
+  <div class="card" id="authCard">
+    <h3>Sign in / Sign up</h3>
+    <div class="row">
+      <div style="flex:1 1 260px">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="you@clinic.com" autocomplete="username" />
+      </div>
+      <div style="flex:1 1 200px">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
     </div>
-    <div style="flex:1 1 200px">
-      <label for="password">Password</label>
-      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+    <div style="display:flex; gap:8px; margin-top:8px">
+      <button class="primary" id="btnSignIn">Sign in</button>
+      <button id="btnSignUp">Create account</button>
+      <button id="btnGoogle">Sign in with Google</button>
+      <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
     </div>
   </div>
-  <div style="display:flex; gap:8px; margin-top:8px">
-    <button class="primary" id="btnSignIn">Sign in</button>
-    <button id="btnSignUp">Create account</button>
-    <button id="btnGoogle">Sign in with Google</button>
-    <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
-  </div>
-</div>
 
   <!-- Tabs -->
   <div class="tabs" id="tabs" style="display:none"></div>
@@ -76,36 +74,38 @@
     <h3>Scan / Log transaction</h3>
     <div class="row">
       <div style="flex:2 1 320px">
-  <div class="row">
-  <div style="flex:2 1 260px">
-    <label for="scan-barcode">Barcode</label>
-    <input id="scan-barcode" placeholder="Focus here and scan…" autocomplete="off" />
-  </div>
-  <div style="flex:1 1 120px">
-    <label for="scan-qty">Qty</label>
-    <input id="scan-qty" type="number" value="1" min="1" autocomplete="off" />
-  </div>
-  <div style="flex:1 1 160px">
-    <label for="scan-mode">Mode</label>
-    <select id="scan-mode" autocomplete="off">
-      <option value="IN">Receive (IN)</option>
-      <option value="OUT">Use (OUT)</option>
-    </select>
-  </div>
-  <div style="flex:1 1 160px" id="price-wrap">
-    <label for="scan-price">Unit Price (IN)</label>
-    <input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50" autocomplete="off" />
-  </div>
-</div>
+        <div class="row">
+          <div style="flex:2 1 260px">
+            <label for="scan-barcode">Barcode</label>
+            <input id="scan-barcode" placeholder="Focus here and scan…" autocomplete="off" />
+          </div>
+          <div style="flex:1 1 120px">
+            <label for="scan-qty">Qty</label>
+            <input id="scan-qty" type="number" value="1" min="1" autocomplete="off" />
+          </div>
+          <div style="flex:1 1 160px">
+            <label for="scan-mode">Mode</label>
+            <select id="scan-mode" autocomplete="off">
+              <option value="IN">Receive (IN)</option>
+              <option value="OUT">Use (OUT)</option>
+            </select>
+          </div>
+          <div style="flex:1 1 160px" id="price-wrap">
+            <label for="scan-price">Unit Price (IN)</label>
+            <input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50" autocomplete="off" />
+          </div>
+        </div>
         <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
-          <button class="primary" id="btnAddTx" onclick="addTx()">Add Transaction</button>
+          <button class="primary" id="btnAddTx">Add Transaction</button>
           <button id="btnCamera">Use Camera (beta)</button>
           <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
           <label class="muted" style="display:flex;gap:6px;align-items:center;margin-left:8px">
-            <input type="checkbox" id="auto-add" checked> Auto-add when scanned
+            <input type="checkbox" id="auto-add"> Auto-add when scanned
           </label>
         </div>
-        <div class="camera" id="camWrap" style="display:none; margin-top:8px"><video id="video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video></div>
+        <div class="camera" id="camWrap" style="display:none; margin-top:8px">
+          <video id="video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video>
+        </div>
       </div>
       <div style="flex:1 1 240px">
         <div class="muted">Matched Item</div>
@@ -116,30 +116,16 @@
 
   <!-- Catalog -->
   <div id="view-catalog" class="card" style="display:none">
-    <div style="display:flex; align-items:center; gap:8px"><h3>Catalog</h3><span class="muted" style="margin-left:auto">On-hand comes from your transactions</span></div>
- <div class="row">
-  <div style="flex:2 1 260px">
-    <label for="cat-barcode">Barcode</label>
-    <input id="cat-barcode" placeholder="9300632083503" autocomplete="off" />
-  </div>
-  <div style="flex:3 1 260px">
-    <label for="cat-name">Item Name</label>
-    <input id="cat-name" placeholder="Colgate Optic White" autocomplete="off" />
-  </div>
-  <div style="flex:1 1 120px">
-    <label for="cat-pack">Pack</label>
-    <input id="cat-pack" placeholder="1" autocomplete="off" />
-  </div>
-  <div style="flex:1 1 120px">
-    <label for="cat-min">Min Stock</label>
-    <input id="cat-min" type="number" placeholder="12" autocomplete="off" />
-  </div>
-  <div style="flex:2 1 200px">
-    <label for="cat-supplier">Supplier</label>
-    <input id="cat-supplier" placeholder="Supplier" autocomplete="organization" />
-  </div>
-</div>
-
+    <div style="display:flex; align-items:center; gap:8px">
+      <h3>Catalog</h3><span class="muted" style="margin-left:auto">On-hand comes from your transactions</span>
+    </div>
+    <div class="row">
+      <div style="flex:2 1 260px"><label for="cat-barcode">Barcode</label><input id="cat-barcode" placeholder="9300632083503" autocomplete="off" /></div>
+      <div style="flex:3 1 260px"><label for="cat-name">Item Name</label><input id="cat-name" placeholder="Colgate Optic White" autocomplete="off" /></div>
+      <div style="flex:1 1 120px"><label for="cat-pack">Pack</label><input id="cat-pack" placeholder="1" autocomplete="off" /></div>
+      <div style="flex:1 1 120px"><label for="cat-min">Min Stock</label><input id="cat-min" type="number" placeholder="12" autocomplete="off" /></div>
+      <div style="flex:2 1 200px"><label for="cat-supplier">Supplier</label><input id="cat-supplier" placeholder="Supplier" autocomplete="organization" /></div>
+    </div>
     <div style="display:flex; gap:8px; margin-top:8px">
       <button class="primary" id="btnUpsertItem">Add / Update Item</button>
       <button id="btnClearItem">Clear</button>
@@ -151,7 +137,9 @@
 
   <!-- Reorder -->
   <div id="view-reorder" class="card" style="display:none">
-    <div style="display:flex; gap:8px; align-items:center"><h3>Reorder</h3><button class="right" id="btnPrint">Print Reorder Sheet</button></div>
+    <div style="display:flex; gap:8px; align-items:center">
+      <h3>Reorder</h3><button class="right" id="btnPrint">Print Reorder Sheet</button>
+    </div>
     <div style="overflow:auto;max-height:320px">
       <table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On-hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
     </div>
@@ -164,19 +152,16 @@
       <table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Staff</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
-
 </div>
 
 <script>
-// ======= CONFIG (yours) =======
-const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-// ==============================
+/*** CONFIG ***/
+const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
+const SUPABASE_ANON = 'PASTE_YOUR_ANON_KEY_HERE';
+/**************/
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser = null;
-
-// Helpers
 const $ = (s)=>document.querySelector(s);
 function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
 function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ document.getElementById(x).style.display = (x===id)?'block':'none';}); }
@@ -188,286 +173,136 @@ function setSignedInUI(signed){
   if(signed){ $('#scan-barcode').focus(); }
 }
 
-// Tabs
 (function buildTabs(){
-  const tabs=[
-    {id:'view-scan', label:'Scan'},
-    {id:'view-catalog', label:'Catalog'},
-    {id:'view-reorder', label:'Reorder'},
-    {id:'view-trans', label:'Transactions'}
-  ];
+  const tabs=[{id:'view-scan',label:'Scan'},{id:'view-catalog',label:'Catalog'},{id:'view-reorder',label:'Reorder'},{id:'view-trans',label:'Transactions'}];
   const c=$('#tabs'); c.innerHTML='';
   tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
 })();
 
-// Auth
+/*** AUTH ***/
 async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
 async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
-async function signOut(){ await sb.auth.signOut(); }
+async function signOut(){ try{ await sb.auth.signOut(); }finally{ location.reload(); } }
 
 document.getElementById('btnGoogle').addEventListener('click', async ()=>{
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: 'https://dentalcount.github.io/dental-inventory/' }
-  });
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: location.origin + location.pathname } });
   if (error) alert(error.message);
 });
-document.getElementById('btnSignOut').addEventListener('click', async ()=>{
-  await sb.auth.signOut();
-  // Force reload to clear UI
-  window.location.href = 'https://dentalcount.github.io/dental-inventory/';
-});
+document.getElementById('btnSignOut').addEventListener('click', signOut);
 
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
+(async()=>{ const { data:{ session } } = await sb.auth.getSession(); currentUser = session?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }})();
 
-  // sanity: show user id
-(async ()=>{
-  const { data: { session } } = await sb.auth.getSession();
-  currentUser = session?.user || null;
-  setSignedInUI(!!currentUser);
-  if(currentUser){ console.log('Signed in as', currentUser.id); }
-})();
+/*** DATA HELPERS ***/
+async function listItemsMap(){ const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier'); const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m; }
+async function onHandMap(){ const {data,error}=await sb.from('transactions').select('action,barcode,quantity'); if(error){ alert(error.message); return {};} const map={}; for(const r of data){ map[r.barcode]=(map[r.barcode]||0)+(r.action==='IN'?+r.quantity:-r.quantity);} return map; }
+async function buildReorder(oh, items){ const tbody=$('#tbl-reo tbody'); tbody.innerHTML=''; for(const it of items){ const cur=oh[it.barcode]||0, min=Number(it.min_stock||0); if(min>0&&cur<min){ const tr=document.createElement('tr'); tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${cur}</td><td>${min}</td><td>${it.supplier||''}</td>`; tbody.appendChild(tr);} } }
 
-  
-// Data
+/*** LOADERS ***/
+async function loadItems(){
+  const {data,error}=await sb.from('items').select('*').order('item_name',{ascending:true});
+  if(error){ alert(error.message); return; }
+  const tbody=$('#tbl-inv tbody'); tbody.innerHTML='';
+  const oh=await onHandMap();
+  for(const it of data){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${it.pack_size||''}</td><td>${oh[it.barcode]||0}</td><td>${it.min_stock||0}</td><td>${it.supplier||''}</td><td>${(it.last_purchase_price!=null?('$'+Number(it.last_purchase_price).toFixed(2)):'')}</td><td><button data-bc="${it.barcode}">Delete</button></td>`;
+    tbody.appendChild(tr);
+  }
+  tbody.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', async()=>{ if(confirm('Delete item '+btn.dataset.bc+'?')){ await sb.from('items').delete().eq('user_id', currentUser.id).eq('barcode', btn.dataset.bc); await loadAll(); }}));
+  await buildReorder(oh, data);
+  const bc=$('#scan-barcode').value.trim(); const m=data.find(x=>x.barcode===bc);
+  $('#match').innerHTML = m? `<b>${m.item_name||'—'}</b><br><span class="muted">Pack: ${m.pack_size||'-'} • Supplier: ${m.supplier||'-'}</span><br>On-hand: <b>${(oh[bc]||0)}</b>` : '—';
+}
+
+async function loadTx(){
+  const {data,error}=await sb.from('transactions').select('*').order('ts',{ascending:false}).limit(500);
+  if(error){ alert(error.message); return; }
+  const tbody=$('#tbl-tx tbody'); tbody.innerHTML='';
+  const items=await listItemsMap();
+  for(const t of data){
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${new Date(t.ts).toLocaleString()}</td><td><span class="tag">${t.action}</span></td><td>${t.barcode}</td><td>${items[t.barcode]?.item_name||''}</td><td>${t.quantity}</td><td>${t.unit_price!=null?('$'+Number(t.unit_price).toFixed(2)) : ''}</td><td>${t.staff||''}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
+
+/*** WRITE FLOWS ***/
+async function addTx(){
+  try{
+    console.log('[addTx] start');
+    if(!currentUser){ alert('Not signed in'); return; }
+    const bc=$('#scan-barcode').value.trim(); if(!bc){ alert('Scan a barcode'); return; }
+    const qty=Number($('#scan-qty').value||1); if(!(qty>0)){ alert('Qty must be > 0'); return; }
+    const action=$('#scan-mode').value;
+    const priceEl=$('#scan-price'); const priceVal=priceEl?Number(priceEl.value):NaN;
+
+    console.log('[addTx] insert item if missing…');
+    const insItem=await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
+    if (insItem.error){
+      const msg=String(insItem.error.message||'');
+      if (insItem.error.code==='23505' || /duplicate key|unique/i.test(msg)) {
+        console.log('[addTx] item already exists');
+      } else { alert('Items insert error: '+insItem.error.message); return; }
+    }
+
+    const tx={ user_id: currentUser.id, action, barcode: bc, quantity: qty, staff:'' };
+    if(action==='IN' && !isNaN(priceVal) && priceVal>0) tx.unit_price=priceVal;
+    console.log('[addTx] insert tx…', tx);
+    const insTx=await sb.from('transactions').insert(tx);
+    if (insTx.error){ alert('Transaction error: '+insTx.error.message); return; }
+    console.log('[addTx] tx insert OK');
+
+    if(action==='IN' && tx.unit_price){
+      const upd=await sb.from('items').update({ last_purchase_price: tx.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
+      if (upd.error) console.warn('[addTx] price update error (non-fatal)', upd.error);
+    }
+
+    $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceEl) priceEl.value='';
+    await loadAll();
+    alert('Transaction added ✔️');
+  }catch(e){ console.error(e); alert('Unexpected: '+(e?.message||e)); }
+}
+
 async function upsertItem(){
   if(!currentUser){ alert('Not signed in'); return; }
-  const row = {
-    user_id: currentUser.id,
-    barcode: $('#cat-barcode').value.trim(),
-    item_name: $('#cat-name').value.trim(),
-    pack_size: $('#cat-pack').value.trim(),
-    min_stock: Number($('#cat-min').value||0),
-    supplier: $('#cat-supplier').value.trim()
-  };
+  const row={ user_id: currentUser.id, barcode: $('#cat-barcode').value.trim(), item_name: $('#cat-name').value.trim(), pack_size: $('#cat-pack').value.trim(), min_stock: Number($('#cat-min').value||0), supplier: $('#cat-supplier').value.trim() };
   if(!row.barcode) return alert('Barcode required');
 
-  // Try update first; if zero rows, insert
-  const upd = await sb.from('items')
-    .update({
-      item_name: row.item_name,
-      pack_size: row.pack_size,
-      min_stock: row.min_stock,
-      supplier: row.supplier
-    })
-    .eq('user_id', row.user_id).eq('barcode', row.barcode);
-
-  if (upd.error) { alert('Update error: ' + upd.error.message); return; }
-
-  if ((upd.count || 0) === 0 && (!upd.data || upd.data.length === 0)) {
-    const ins = await sb.from('items').insert(row);
-    if (ins.error) {
-      // ignore unique violation, otherwise show
-      if (ins.error.code !== '23505') { alert('Insert error: ' + ins.error.message); return; }
-    }
+  const ins=await sb.from('items').insert(row);
+  if (ins.error){
+    const msg=String(ins.error.message||'');
+    if (ins.error.code==='23505' || /duplicate key|unique/i.test(msg)){
+      const upd=await sb.from('items').update({ item_name: row.item_name, pack_size: row.pack_size, min_stock: row.min_stock, supplier: row.supplier }).eq('user_id', row.user_id).eq('barcode', row.barcode);
+      if (upd.error){ alert('Update error: '+upd.error.message); return; }
+    } else { alert('Insert error: '+ins.error.message); return; }
   }
-
   await loadItems();
   $('#cat-name').value=''; $('#cat-pack').value=''; $('#cat-min').value=''; $('#cat-supplier').value='';
   alert('Saved to Catalog ✔️');
 }
 
+/*** CAMERA (unchanged, trimmed) ***/
+let stream=null, zxingReader=null; const supportsBarcode=('BarcodeDetector' in window);
+async function startCamera(){ try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}); const v=$('#video'); v.srcObject=stream; await v.play(); $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
+  if(supportsBarcode){ const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']}); const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }catch(e){} requestAnimationFrame(loop); }; loop();
+  } else if(window.ZXing){ zxingReader=new ZXing.BrowserMultiFormatReader(); await zxingReader.decodeFromVideoDevice(null,'video',(result)=>{ if(result){ const val=result.getText(); $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }); }
+}catch(e){ alert('Camera error: '+e.message); } }
+function stopCamera(){ try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){} if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } $('#camWrap').style.display='none'; $('#btnStopCam').style.display='none'; }
 
-
-async function addTx(){
-  try{
-    console.log('[addTx] start');
-
-    if(!currentUser){ alert('Not signed in'); return; }
-
-    const bc = $('#scan-barcode').value.trim();
-    if(!bc){ alert('Scan a barcode'); return; }
-
-    const qty = Number($('#scan-qty').value||1);
-    if(!(qty>0)){ alert('Qty must be > 0'); return; }
-
-    const action = $('#scan-mode').value;
-    const priceEl = document.getElementById('scan-price');
-    const priceVal = priceEl ? Number(priceEl.value) : NaN;
-
-    // 1) create item if missing — use INSERT and ignore unique violation
-    console.log('[addTx] insert item if missing…');
-    const insItem = await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
-    if (insItem.error) {
-      const msg = String(insItem.error.message || '');
-      // Postgres unique violation error code is 23505 (Supabase exposes .code)
-      if (insItem.error.code === '23505' || /duplicate key|unique/i.test(msg)) {
-        console.log('[addTx] item already existed, continuing');
-      } else {
-        console.error('[addTx] insert item error', insItem.error);
-        alert('Items insert error: ' + insItem.error.message);
-        return;
-      }
-    } else {
-      console.log('[addTx] item insert OK');
-    }
-
-    // 2) insert transaction
-    const txObj = { user_id: currentUser.id, action, barcode: bc, quantity: qty, staff: '' };
-    if (action === 'IN' && !isNaN(priceVal) && priceVal > 0) txObj.unit_price = priceVal;
-
-    console.log('[addTx] insert tx…', txObj);
-    const insTx = await sb.from('transactions').insert(txObj);
-    if (insTx.error) {
-      console.error('[addTx] insert tx error', insTx.error);
-      alert('Transaction error: ' + insTx.error.message);
-      return;
-    }
-    console.log('[addTx] tx insert OK');
-
-    // 3) update last price (IN only) — best effort
-    if (action === 'IN' && txObj.unit_price){
-      const upd = await sb.from('items')
-        .update({ last_purchase_price: txObj.unit_price })
-        .eq('user_id', currentUser.id).eq('barcode', bc);
-      if (upd.error) console.warn('[addTx] price update error (non-fatal)', upd.error);
-    }
-
-    // 4) refresh UI
-    $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceEl) priceEl.value='';
-    await Promise.all([loadItems(), loadTx()]);
-    alert('Transaction added ✔️');
-    console.log('[addTx] done');
-  }catch(err){
-    console.error('[addTx] unexpected', err);
-    alert('Unexpected error: ' + (err?.message || err));
-  }
-}
-
-
-
-function togglePriceVisibility(){
-  const wrap = document.getElementById('price-wrap');
-  if(!wrap) return;
-  wrap.style.display = (document.getElementById('scan-mode').value==='IN') ? 'block' : 'none';
-}
-document.getElementById('scan-mode').addEventListener('change', togglePriceVisibility);
-setTimeout(togglePriceVisibility, 0);
-
-async function loadItems(){
-  const {data, error} = await sb.from('items').select('*').order('item_name', {ascending:true});
-  if(error) { alert(error.message); return; }
-  const tbody=$('#tbl-inv tbody'); tbody.innerHTML='';
-  const oh = await onHandMap();
-  for(const it of data){
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${it.pack_size||''}</td><td>${oh[it.barcode]||0}</td><td>${it.min_stock||0}</td><td>${it.supplier||''}</td><td>${(it.last_purchase_price!=null? ('$'+Number(it.last_purchase_price).toFixed(2)) : '')}</td><td><button data-bc="${it.barcode}">Delete</button></td>`;
-    tbody.appendChild(tr);
-  }
-  tbody.querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click', async()=>{ if(confirm('Delete item '+btn.dataset.bc+'?')){ await sb.from('items').delete().eq('user_id', currentUser.id).eq('barcode', btn.dataset.bc); await loadAll(); }});
-  });
-  await buildReorder(oh, data);
-  const bc=$('#scan-barcode').value.trim();
-  const m = data.find(x=>x.barcode===bc);
-  $('#match').innerHTML = m? `<b>${m.item_name||'—'}</b><br><span class="muted">Pack: ${m.pack_size||'-'} • Supplier: ${m.supplier||'-'}</span><br>On-hand: <b>${(oh[bc]||0)}</b>` : '—';
-
-  // Low-stock alerts
-  for(const it of data){
-    const cur = oh[it.barcode]||0; const min = Number(it.min_stock||0);
-    if(min>0 && cur<min){ alert(`⚠️ Low stock: ${it.item_name||it.barcode} (On-hand: ${cur}, Min: ${min})`); }
-  }
-}
-
-async function loadTx(){
-  const {data, error} = await sb.from('transactions').select('*').order('ts', {ascending:false}).limit(500);
-  if(error){ alert(error.message); return; }
-  const tbody=$('#tbl-tx tbody'); tbody.innerHTML='';
-  const items = await listItemsMap();
-  for(const t of data){
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${new Date(t.ts).toLocaleString()}</td><td><span class="tag">${t.action}</span></td><td>${t.barcode}</td><td>${items[t.barcode]?.item_name||''}</td><td>${t.quantity}</td><td>${t.unit_price!=null? ('$'+Number(t.unit_price).toFixed(2)) : ''}</td><td>${t.staff||''}</td>`;
-    tbody.appendChild(tr);
-  }
-}
-
-async function onHandMap(){
-  const {data, error} = await sb.from('transactions').select('action, barcode, quantity');
-  if(error) { alert(error.message); return {}; }
-  const map={};
-  for(const r of data){ if(!map[r.barcode]) map[r.barcode]=0; map[r.barcode]+= (r.action==='IN'? +r.quantity : -r.quantity); }
-  return map;
-}
-async function listItemsMap(){
-  const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier');
-  const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m;
-}
-async function buildReorder(oh, items){
-  const tbody=$('#tbl-reo tbody'); tbody.innerHTML='';
-  for(const it of items){
-    const cur = oh[it.barcode]||0; const min = Number(it.min_stock||0);
-    if(min>0 && cur<min){
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${cur}</td><td>${min}</td><td>${it.supplier||''}</td>`;
-      tbody.appendChild(tr);
-    }
-  }
-}
-
-// Camera + ZXing fallback with auto-add
-let stream=null; let zxingReader=null; const supportsBarcode = 'BarcodeDetector' in window;
-let lastScanText = ''; const AUTO_ADD_DELAY = 600;
-function maybeAutoAdd(text){
-  const cb = document.getElementById('auto-add');
-  if(!cb || !cb.checked) return;
-  if(!text || text === lastScanText) return;
-  lastScanText = text;
-  const snapshot = text;
-  setTimeout(()=>{
-    if(document.getElementById('scan-barcode').value.trim() === snapshot){ addTx(); }
-  }, AUTO_ADD_DELAY);
-}
-async function startCamera(){
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-    const v=$('#video'); v.srcObject=stream; await v.play();
-    $('#camWrap').style.display='block'; $('#btnStopCam').style.display='inline-block';
-
-    if(supportsBarcode){
-      const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
-      const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value = val; maybeAutoAdd(val); } }catch(e){} requestAnimationFrame(loop); };
-      loop();
-    } else if(window.ZXing){
-      zxingReader = new ZXing.BrowserMultiFormatReader();
-      await zxingReader.decodeFromVideoDevice(null, 'video', (result, err) => {
-        if(result){ const val = result.getText(); $('#scan-barcode').value = val; maybeAutoAdd(val); }
-      });
-    } else {
-      alert('Camera scanning not supported on this browser. Use a Bluetooth scanner.');
-    }
-  }catch(e){ alert('Camera error: '+e.message); }
-}
-function stopCamera(){
-  try { if (zxingReader) { zxingReader.reset(); zxingReader = null; } } catch(e){}
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  $('#camWrap').style.display = 'none';
-  $('#btnStopCam').style.display = 'none';
-}
-
-async function loadAll(){
-  await Promise.all([loadItems(), loadTx()]);
-}
-
-// Events
-document.getElementById('btnSignUp').addEventListener('click', signUp);
-document.getElementById('btnSignIn').addEventListener('click', signIn);
-document.getElementById('btnUpsertItem').addEventListener('click', upsertItem);
-document.getElementById('btnClearItem').addEventListener('click', ()=>{ ['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''); });
-document.getElementById('btnAddTx').addEventListener('click', addTx);
-document.getElementById('scan-barcode').addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addTx(); }});
-document.getElementById('btnReload').addEventListener('click', loadAll);
-document.getElementById('btnPrint').addEventListener('click', ()=>window.print());
-document.getElementById('btnCamera').addEventListener('click', startCamera);
-document.getElementById('btnStopCam').addEventListener('click', stopCamera);
+/*** EVENTS ***/
+$('#btnSignUp').addEventListener('click', signUp);
+$('#btnSignIn').addEventListener('click', signIn);
+$('#btnUpsertItem').addEventListener('click', upsertItem);
+$('#btnClearItem').addEventListener('click', ()=>['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''));
+$('#btnAddTx').addEventListener('click', addTx);
+$('#scan-barcode').addEventListener('keydown', e=>{ if(e.key==='Enter') addTx(); });
+$('#btnReload').addEventListener('click', loadAll);
+$('#btnPrint').addEventListener('click', ()=>window.print());
+$('#btnCamera').addEventListener('click', startCamera);
+$('#btnStopCam').addEventListener('click', stopCamera);
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
