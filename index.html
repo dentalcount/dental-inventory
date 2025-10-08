@@ -173,6 +173,38 @@ const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
 /**************/
 
+  /*** Session hardening ***/
+const APP_VER = '1.0.3';                         // bump this whenever you deploy
+const PROJECT_REF = new URL(SUPABASE_URL).host;  // e.g., "sgjoadsefpcixvmthtfy.supabase.co"
+
+// If user loads a new build or you changed keys/projects, clear old sessions automatically
+try {
+  const lastVer = localStorage.getItem('APP_VER');
+  const lastRef = localStorage.getItem('APP_REF');
+  if (lastVer !== APP_VER || lastRef !== PROJECT_REF) {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('APP_VER', APP_VER);
+    localStorage.setItem('APP_REF', PROJECT_REF);
+    // reload with cache-buster to avoid stale HTML
+    location.replace(location.origin + location.pathname + '?v=' + Date.now());
+  }
+} catch (e) { /* ignore */ }
+
+// If a stale OAuth return URL is detected, force a refresh once
+sb.auth.onAuthStateChange(async (evt, sess) => {
+  if (evt === 'TOKEN_REFRESHED' || evt === 'SIGNED_IN') return;
+  // nothing to do
+});
+
+// Optional: refresh when tab comes back to foreground
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible') {
+    await sb.auth.getSession(); // triggers internal refresh if needed
+  }
+});
+
+  
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 let currentUser = null;
 let latestReorder = [];
@@ -389,3 +421,4 @@ $('#btnCSV').addEventListener('click', downloadCSV);
 </script>
 </body>
 </html>
+
