@@ -175,7 +175,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
   /*** Session hardening ***/
 const APP_VER = '1.0.3';                         // bump this whenever you deploy
-const PROJECT_REF = new URL(SUPABASE_URL).host;  // e.g., "sgjoadsefpcixvmthtfy.supabase.co"
+const PROJECT_REF = 'sgjoadsefpcixvmthtfy.supabase.co'
 
 // If user loads a new build or you changed keys/projects, clear old sessions automatically
 try {
@@ -421,4 +421,5 @@ $('#btnCSV').addEventListener('click', downloadCSV);
 </script>
 </body>
 </html>
+
 
