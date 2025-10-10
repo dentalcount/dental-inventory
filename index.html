@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <!-- Stop cached OAuth returns -->
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -43,6 +44,7 @@
     </div>
     <div style="margin-left:auto; display:flex; gap:8px">
       <button id="btnSignOut" class="warn" style="display:none">Sign out</button>
+      <button id="btnReset" class="warn" title="Clears cached session & reloads">Reset session</button>
     </div>
   </div>
 </header>
@@ -65,7 +67,6 @@
       <button class="primary" id="btnSignIn">Sign in</button>
       <button id="btnSignUp">Create account</button>
       <button id="btnGoogle">Sign in with Google</button>
-      <button id="btnReset" class="warn" title="Clears cached session & reloads">Reset session</button>
       <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
     </div>
   </div>
@@ -168,55 +169,48 @@
 </div>
 
 <script>
-/*** 1) CONFIG — put your actual values here FIRST ***/
+/*** CONFIG — put your real values here ***/
 const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+/**************/
   
-/*** 2) CREATE CLIENT BEFORE ANY USE OF `sb` ***/
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+/*** VERSIONED STORAGE KEY — bump to force new session after deploy ***/
+const APP_VER = '1.0.5';
+const STORAGE_KEY = 'di_' + APP_VER.replace(/\./g,'_'); // e.g. di_1_0_5
 
-/*** 3) SESSION HARDENING (safe: doesn’t touch `sb` yet) ***/
-const APP_VER = '1.0.4';
-const PROJECT_REF = new URL(SUPABASE_URL).host;
-try {
-  const lastVer = localStorage.getItem('APP_VER');
-  const lastRef = localStorage.getItem('APP_REF');
-  if (lastVer !== APP_VER || lastRef !== PROJECT_REF) {
-    localStorage.clear();
-    sessionStorage.clear();
-    localStorage.setItem('APP_VER', APP_VER);
-    localStorage.setItem('APP_REF', PROJECT_REF);
-    location.replace(location.origin + location.pathname + '?v=' + Date.now());
+/*** Create client FIRST, with a versioned storageKey ***/
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: {
+    storageKey: STORAGE_KEY,          // <- prevents old sessions from different versions
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
   }
-} catch(e){}
+});
 
-/*** 4) GLOBAL STATE + SHORTCUTS ***/
 let currentUser = null;
 let latestReorder = [];
 const $ = (s)=>document.querySelector(s);
 
-/*** 5) SMALL UI HELPERS ***/
-function setTabsVisible(v){ $('#tabs').style.display = v?'flex':'none'; }
+/*** UI helpers ***/
+function setTabsVisible(v){ const t=$('#tabs'); if(t) t.style.display = v?'flex':'none'; }
 function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ const el=document.getElementById(x); if(el) el.style.display = (x===id)?'block':'none';}); }
 function setSignedInUI(signed){
-  const auth = document.getElementById('authCard');
-  if(auth) auth.style.display = signed?'none':'block';
+  const auth=document.getElementById('authCard'); if(auth) auth.style.display = signed?'none':'block';
   setTabsVisible(signed);
-  const s = document.getElementById('status');
-  if(s) s.textContent = signed? ('Signed in: '+(currentUser?.email||'')) : 'Not signed in';
-  const out = document.getElementById('btnSignOut');
-  if(out) out.style.display = signed?'inline-block':'none';
+  const s=document.getElementById('status'); if(s) s.textContent = signed? ('Signed in: '+(currentUser?.email||'')) : 'Not signed in';
+  const out=document.getElementById('btnSignOut'); if(out) out.style.display = signed?'inline-block':'none';
   if(signed){ const b=document.getElementById('scan-barcode'); if(b) b.focus(); }
 }
 
-/*** 6) TABS ***/
+/*** Tabs ***/
 (function buildTabs(){
   const tabs=[{id:'view-scan',label:'Scan'},{id:'view-catalog',label:'Catalog'},{id:'view-reorder',label:'Reorder'},{id:'view-trans',label:'Transactions'}];
   const c=$('#tabs'); if(!c) return; c.innerHTML='';
   tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
 })();
 
-/*** 7) AUTH FUNCTIONS (use `sb` after it exists) ***/
+/*** Auth functions ***/
 async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
 async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
 async function signOut(){
@@ -224,21 +218,28 @@ async function signOut(){
   try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
   location.replace(location.origin + location.pathname + '?signed_out=' + Date.now());
 }
+
+// Google sign-in with cache-busted redirect
 document.getElementById('btnGoogle')?.addEventListener('click', async ()=>{
   const redirect = location.origin + location.pathname + '?auth=' + Date.now();
   const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect } });
   if (error) alert(error.message);
 });
+document.getElementById('btnReset')?.addEventListener('click', ()=>{
+  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
+  location.replace(location.origin + location.pathname + '?reset=' + Date.now());
+});
+document.getElementById('btnSignOut')?.addEventListener('click', signOut);
 
-/*** 8) AUTH LISTENERS (still after client create) ***/
+/*** Auth listeners & initial session ***/
 sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
 (async()=>{ const { data:{ session } } = await sb.auth.getSession(); currentUser = session?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }})();
 
-/*** 9) DATA HELPERS ***/
+/*** Data helpers ***/
 async function listItemsMap(){ const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier'); const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m; }
 async function onHandMap(){ const {data,error}=await sb.from('transactions').select('action,barcode,quantity'); if(error){ alert(error.message); return {};} const map={}; for(const r of data){ map[r.barcode]=(map[r.barcode]||0)+(r.action==='IN'?+r.quantity:-r.quantity);} return map; }
 
-/*** 10) LOADERS ***/
+/*** Loaders ***/
 async function loadItems(){
   const {data,error}=await sb.from('items').select('*').order('item_name',{ascending:true});
   if(error){ alert(error.message); return; }
@@ -280,7 +281,7 @@ async function buildReorder(oh, items){
 }
 async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
-/*** 11) WRITES ***/
+/*** Writes ***/
 async function addTx(){
   try{
     if(!currentUser){ alert('Not signed in'); return; }
@@ -290,6 +291,7 @@ async function addTx(){
     const priceEl=$('#scan-price'); const priceVal=priceEl?Number(priceEl.value):NaN;
     const staff = ($('#scan-staff').value||'').trim().toUpperCase();
 
+    // ensure item exists (ignore duplicate error)
     const insItem=await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
     if (insItem.error){
       const msg=String(insItem.error.message||'');
@@ -331,7 +333,7 @@ async function upsertItem(){
   alert('Saved to Catalog ✔️');
 }
 
-/*** 12) EMAIL & CSV ***/
+/*** Email & CSV ***/
 function emailReorder(){
   if(!latestReorder.length){ alert('Nothing to reorder'); return; }
   const clinic = currentUser?.email || 'Clinic';
@@ -355,7 +357,7 @@ function downloadCSV(){
   URL.revokeObjectURL(url);
 }
 
-/*** 13) CAMERA ***/
+/*** Camera ***/
 let stream=null, zxingReader=null; const supportsBarcode=('BarcodeDetector' in window);
 function togglePrice(){ const w=document.getElementById('price-wrap'); if(w) w.style.display = (document.getElementById('scan-mode').value==='IN')?'block':'none'; }
 document.getElementById('scan-mode')?.addEventListener('change', togglePrice); togglePrice();
@@ -376,10 +378,9 @@ async function startCamera(){ try{
 }catch(e){ alert('Camera error: '+e.message); } }
 function stopCamera(){ try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){} if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } document.getElementById('camWrap').style.display='none'; document.getElementById('btnStopCam').style.display='none'; }
 
-/*** 14) EVENTS (bind after DOM exists; safe here at end) ***/
+/*** Events ***/
 document.getElementById('btnSignUp')?.addEventListener('click', signUp);
 document.getElementById('btnSignIn')?.addEventListener('click', signIn);
-document.getElementById('btnSignOut')?.addEventListener('click', signOut);
 document.getElementById('btnUpsertItem')?.addEventListener('click', upsertItem);
 document.getElementById('btnClearItem')?.addEventListener('click', ()=>['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''));
 document.getElementById('btnAddTx')?.addEventListener('click', addTx);
@@ -391,10 +392,5 @@ document.getElementById('btnStopCam')?.addEventListener('click', stopCamera);
 document.getElementById('btnEmail')?.addEventListener('click', emailReorder);
 document.getElementById('btnCSV')?.addEventListener('click', downloadCSV);
 </script>
-
-  
 </body>
 </html>
-
-
-
