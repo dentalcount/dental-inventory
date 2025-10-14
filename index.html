@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
 <title>Dental Inventory</title>
 
 <!-- Inline favicon -->
@@ -11,19 +11,23 @@
 
 <!-- Supabase UMD FIRST (no defer) -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+<!-- ZXing barcode scanner -->
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
 
 <style>
   :root{--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee}
+  html{-webkit-text-size-adjust:100%}
   body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:var(--text)}
-  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px;padding-bottom:64px}
   .card{background:#0c1426;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin:14px 0}
-  input,button{width:100%;padding:.7rem .8rem;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0d1526;color:var(--text)}
-  input:focus{outline:none;border-color:var(--accent)}
+  input,button,select{width:100%;padding:0.9rem 0.95rem;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0d1526;color:var(--text);font-size:16px; /* >=16px prevents iOS zoom */}
+  input:focus,select:focus{outline:none;border-color:var(--accent)}
   button{cursor:pointer}
   .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700;border:none}
   .btn.alt{background:#1f2937;border:none}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  @media (max-width:820px){ .row,.row3{grid-template-columns:1fr} }
   .pill{display:inline-flex;gap:8px;align-items:center;padding:.25rem .6rem;border-radius:999px;background:#102037;border:1px solid rgba(255,255,255,.08);color:#a5b4fc}
   table{width:100%;border-collapse:separate;border-spacing:0 8px}
   th,td{padding:.65rem .6rem;text-align:left}
@@ -33,13 +37,23 @@
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .right{margin-left:auto}
-  .hint{color:var(--muted);font-size:.85rem}
+  .hint{color:var(--muted);font-size:.90rem}
   .hidden{display:none!important}
-  .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12);cursor:pointer}
+  .file{padding:.6rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12);cursor:pointer}
   .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.75rem}
   .owner{color:#93c5fd}
   .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+  /* Tabs */
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .tab{padding:.55rem .8rem;border-radius:10px;background:#0f1a33;border:1px solid rgba(255,255,255,.08);cursor:pointer}
+  .tab.active{background:#152143;border-color:#2b3a66}
+  /* Camera modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  .modal-card{background:#0c1426;border:1px solid rgba(255,255,255,.12);border-radius:14px;max-width:560px;width:100%;padding:16px}
+  video{width:100%;border-radius:12px;background:#000}
+  /* Sticky actions on mobile */
+  .sticky-actions{position:sticky;bottom:12px;display:flex;gap:10px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -51,7 +65,7 @@
     <div class="row">
       <div>
         <label>Email (Magic Link)</label>
-        <input id="email" type="email" placeholder="you@clinic.com"/>
+        <input id="email" type="email" placeholder="you@clinic.com" autocomplete="email"/>
       </div>
       <div style="align-self:end">
         <button id="btnMagic" class="btn primary">Send Link</button>
@@ -62,86 +76,176 @@
       <div><button id="btnReset" class="btn alt">Reset Session</button></div>
     </div>
     <div class="hint" style="margin-top:8px">
-      If you see a “device clock skew” warning in Console, just sync your system time; the app will still sign you in.
+      iPhone tip: inputs are ≥16px to avoid zoom; if camera doesn’t open, ensure Safari has Camera permission for this site.
     </div>
   </div>
 
   <!-- APP -->
   <div id="app" class="hidden">
-    <!-- New item / scan -->
-    <div class="card">
-      <div class="flex">
-        <div class="pill">Add / Scan Item</div>
-        <span class="right hint">New items require a <strong>Name</strong> before saving.</span>
-      </div>
-      <div class="row3" style="margin-top:12px">
-        <div>
-          <label>Barcode</label>
-          <input id="inBarcode" class="mono" placeholder="Scan or type…"/>
-        </div>
-        <div>
-          <label>Item Name <span class="hint">(required for new items)</span></label>
-          <input id="inName" placeholder="e.g., GIC Fuji IX Capsule A2"/>
-        </div>
-        <div>
-          <label>Unit</label>
-          <input id="inUnit" placeholder="box / pack / ea"/>
-        </div>
-      </div>
-      <div class="row3">
-        <div>
-          <label>Pack Size</label>
-          <input id="inPack" placeholder="e.g., x10 / 50pcs / 3g"/>
-        </div>
-        <div>
-          <label>Photo (capture or choose)</label>
-          <input id="inPhoto" type="file" accept="image/*" capture="environment"/>
-        </div>
-        <div style="align-self:end">
-          <button id="btnAdd" class="btn primary">Save / Upsert</button>
-        </div>
-      </div>
-      <div id="photoPreviewWrap" class="flex hidden" style="margin-top:8px">
-        <img id="photoPreview" class="preview" alt="preview"/>
-        <span class="hint">This photo uploads when you save.</span>
-      </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="catalogue">Catalogue</button>
+      <button class="tab" data-tab="transactions">Transactions</button>
+      <button class="tab" data-tab="reorder">Reorder</button>
     </div>
 
     <!-- Catalogue -->
-    <div class="card">
-      <div class="flex">
-        <div class="pill">Catalogue</div>
-        <div class="right flex" style="gap:10px">
-          <input id="inSearch" placeholder="Search name or barcode…" class="mono"/>
-          <button id="btnRefresh" class="btn alt">Refresh</button>
-          <button id="btnExport" class="btn alt" title="CSV export (admin only)">Export CSV</button>
-          <label class="file hidden" id="lblImport">
-            <input id="inImport" type="file" accept=".csv" class="hidden"/>
-            <span>Import CSV (admin)</span>
-          </label>
+    <section id="tab-catalogue">
+      <!-- New item / scan -->
+      <div class="card">
+        <div class="flex">
+          <div class="pill">Add / Scan Item</div>
+          <span class="right hint">New items require a <strong>Name</strong> before saving.</span>
+        </div>
+        <div class="row3" style="margin-top:12px">
+          <div>
+            <label>Barcode</label>
+            <div class="flex" style="gap:8px">
+              <input id="inBarcode" class="mono" placeholder="Scan or type…"/>
+              <button id="btnScan" class="btn alt" style="width:auto">Scan</button>
+            </div>
+          </div>
+          <div>
+            <label>Item Name <span class="hint">(required for new items)</span></label>
+            <input id="inName" placeholder="e.g., GIC Fuji IX Capsule A2"/>
+          </div>
+          <div>
+            <label>Unit</label>
+            <input id="inUnit" placeholder="box / pack / ea"/>
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>Pack Size</label>
+            <input id="inPack" placeholder="e.g., x10 / 50pcs / 3g"/>
+          </div>
+          <div>
+            <label>Photo (capture or choose)</label>
+            <input id="inPhoto" type="file" accept="image/*" capture="environment"/>
+          </div>
+          <div class="sticky-actions">
+            <button id="btnAdd" class="btn primary">Save / Upsert</button>
+          </div>
+        </div>
+        <div id="photoPreviewWrap" class="flex hidden" style="margin-top:8px">
+          <img id="photoPreview" class="preview" alt="preview"/>
+          <span class="hint">This photo uploads when you save.</span>
         </div>
       </div>
-      <div class="hint" style="margin:6px 0 10px">
-        Admins can toggle <label style="display:inline;margin:0 6px"><input id="chkAll" type="checkbox"/> View all users</label>
-        <span id="orgHint" class="badge"></span>
+
+      <!-- Catalogue list -->
+      <div class="card">
+        <div class="flex">
+          <div class="pill">Catalogue</div>
+          <div class="right flex" style="gap:10px">
+            <input id="inSearch" placeholder="Search name or barcode…" class="mono"/>
+            <button id="btnRefresh" class="btn alt">Refresh</button>
+            <button id="btnExport" class="btn alt" title="CSV export (admin only)">Export CSV</button>
+            <!-- Import hidden unless admin; no “admins can toggle” hint -->
+            <label class="file hidden" id="lblImport">
+              <input id="inImport" type="file" accept=".csv" class="hidden"/>
+              <span>Import CSV</span>
+            </label>
+          </div>
+        </div>
+        <div class="hint" style="margin:6px 0 10px">
+          <span id="orgHint" class="badge"></span>
+        </div>
+        <div style="overflow:auto">
+          <table>
+            <thead>
+            <tr>
+              <th>Photo</th>
+              <th>Barcode</th>
+              <th>Name</th>
+              <th>Unit</th>
+              <th>Pack</th>
+              <th class="owner">Owner</th>
+              <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
       </div>
-      <div style="overflow:auto">
-        <table>
-          <thead>
-          <tr>
-            <th>Photo</th>
-            <th>Barcode</th>
-            <th>Name</th>
-            <th>Unit</th>
-            <th>Pack</th>
-            <th class="owner">Owner</th>
-            <th>Actions</th>
-          </tr>
-          </thead>
-          <tbody id="tblBody"></tbody>
-        </table>
+    </section>
+
+    <!-- Transactions -->
+    <section id="tab-transactions" class="hidden">
+      <div class="card">
+        <div class="pill">Log Movement</div>
+        <div class="row" style="margin-top:10px">
+          <div>
+            <label>Barcode</label>
+            <div class="flex" style="gap:8px">
+              <input id="mvBarcode" class="mono" placeholder="Scan or type…"/>
+              <button id="btnScanTx" class="btn alt" style="width:auto">Scan</button>
+            </div>
+          </div>
+          <div>
+            <label>Type</label>
+            <select id="mvType">
+              <option value="RECEIVE">RECEIVE</option>
+              <option value="USE">USE</option>
+              <option value="ADJUST">ADJUST</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Quantity</label>
+            <input id="mvQty" type="number" inputmode="decimal" placeholder="e.g., 10"/>
+          </div>
+          <div>
+            <label>Note</label>
+            <input id="mvNote" placeholder="optional note"/>
+          </div>
+        </div>
+        <div class="sticky-actions">
+          <button id="btnLogMove" class="btn primary">Log Movement</button>
+        </div>
+        <div class="hint" style="margin-top:8px">Logs attach to the matched catalogue item in your org (by barcode).</div>
       </div>
+      <div class="card">
+        <div class="pill">Recent Movements</div>
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr><th>When</th><th>Barcode</th><th>Name</th><th>Type</th><th>Qty</th><th>Note</th></tr></thead>
+            <tbody id="tblMoves"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reorder -->
+    <section id="tab-reorder" class="hidden">
+      <div class="card">
+        <div class="pill">Reorder Suggestions</div>
+        <div class="hint" style="margin-top:6px">
+          Based on last 30 days: items with **USE** count but no recent **RECEIVE** are flagged.
+        </div>
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr><th>Barcode</th><th>Name</th><th>Uses (30d)</th><th>Receives (30d)</th><th>Suggestion</th></tr></thead>
+            <tbody id="tblReorder"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Camera modal -->
+<div id="scanModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div class="pill">Scan Barcode</div>
+      <button id="btnCloseModal" class="btn alt" style="width:auto">Close</button>
     </div>
+    <video id="video" playsinline muted></video>
+    <div class="hint" style="margin-top:6px">Point your camera at the barcode. Detected value will fill the field automatically.</div>
   </div>
 </div>
 
@@ -149,21 +253,35 @@
 (function boot(){
   if(!window.supabase) return setTimeout(boot,10);
 
-  // ====== CONFIG ======
+  // ====== CONFIG (implicit flow + manual hash handling already in earlier build) ======
   const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // exact, trailing slash
   const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
   const SUPABASE_ANON_KEY =
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
 
-  // Create client with implicit flow (no code exchange step)
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: {
       persistSession: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,   // we’ll handle hash tokens manually
       flowType: 'implicit',
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      storageKey: 'dentalinv-auth-v1'
     }
   });
+
+  // Manual hash token hydration (works around clock skew)
+  (async function hydrateFromHash(){
+    if (location.hash && /access_token=/.test(location.hash)) {
+      const p = new URLSearchParams(location.hash.slice(1));
+      const access_token = p.get('access_token');
+      const refresh_token = p.get('refresh_token');
+      if (access_token && refresh_token) {
+        try { await supa.auth.setSession({ access_token, refresh_token }); }
+        catch(e){ console.warn('setSession failed', e); }
+      }
+      history.replaceState({}, '', REDIRECT_URL);
+    }
+  })();
 
   // ====== ELEMENTS ======
   const $ = id => document.getElementById(id);
@@ -172,6 +290,23 @@
   const roleBadge = $('roleBadge');
   const orgHint = $('orgHint');
 
+  // Tabs
+  const tabs = document.querySelectorAll('.tab');
+  const sections = {
+    catalogue: $('tab-catalogue'),
+    transactions: $('tab-transactions'),
+    reorder: $('tab-reorder')
+  };
+  tabs.forEach(t=>{
+    t.onclick=()=>{
+      tabs.forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      Object.values(sections).forEach(s=>s.classList.add('hidden'));
+      sections[t.dataset.tab].classList.remove('hidden');
+    };
+  });
+
+  // Catalogue inputs
   const inBarcode = $('inBarcode');
   const inName = $('inName');
   const inUnit = $('inUnit');
@@ -181,14 +316,29 @@
   const photoPreview = $('photoPreview');
   const inSearch = $('inSearch');
   const tblBody = $('tblBody');
-  const chkAll = $('chkAll');
   const btnExport = $('btnExport');
   const inImport = $('inImport');
   const lblImport = $('lblImport');
 
+  // Transactions
+  const mvBarcode = $('mvBarcode');
+  const mvType = $('mvType');
+  const mvQty = $('mvQty');
+  const mvNote = $('mvNote');
+  const tblMoves = $('tblMoves');
+
+  // Scanner modal
+  const scanModal = $('scanModal');
+  const video = $('video');
+  const btnScan = $('btnScan');
+  const btnScanTx = $('btnScanTx');
+  const btnCloseModal = $('btnCloseModal');
+
   let profile = null;
   let isAdmin = false;
   let rows = [];
+  let codeReader = null;
+  let activeTargetInput = null;
 
   // ====== AUTH CONTROLS ======
   $('btnMagic').onclick = async () => {
@@ -218,21 +368,23 @@
 
   // ====== SESSION HANDLING ======
   supa.auth.onAuthStateChange(async (_e, session) => {
-    // Show/hide app
     toggleUI(!!session?.user);
     if (session?.user) {
       await loadProfile();
       await refresh();
+      await loadRecentMoves();
+      await buildReorder();
     }
   });
 
   (async () => {
-    // Initial check (covers cases where tokens are in URL hash briefly)
     const { data:{ session } } = await supa.auth.getSession();
     toggleUI(!!session?.user);
     if (session?.user) {
       await loadProfile();
       await refresh();
+      await loadRecentMoves();
+      await buildReorder();
     }
   })();
 
@@ -256,10 +408,9 @@
     roleBadge.textContent = isAdmin ? 'Admin' : 'User';
     roleBadge.classList.remove('hidden');
     orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
-
-    chkAll.disabled = !isAdmin;
-    btnExport.disabled = !isAdmin;
+    // No admin toggle UI; import button only for admins
     lblImport.classList.toggle('hidden', !isAdmin);
+    btnExport.disabled = !isAdmin;
   }
 
   // ====== PHOTO PREVIEW ======
@@ -344,10 +495,10 @@
     const { data, error } = await fetchCatalogue();
     if (error) { alert(error.message); return; }
     rows = data || [];
-    render();
+    renderCatalogue();
   }
 
-  function render() {
+  function renderCatalogue() {
     const q = inSearch.value.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter(r =>
       (r.name||'').toLowerCase().includes(q) ||
@@ -411,7 +562,7 @@
     const field = input.getAttribute('data-field');
     const value = input.value.trim() || null;
     if (field === 'name' && (!value || value.length === 0)) {
-      alert('Name is required.'); return render();
+      alert('Name is required.'); return renderCatalogue();
     }
     const payload = {}; payload[field] = value;
     const { error } = await supa.from('catalogue').update(payload).eq('id', id);
@@ -430,8 +581,190 @@
   }
 
   $('btnRefresh').onclick = refresh;
-  $('chkAll').addEventListener('change', refresh);
-  inSearch.addEventListener('input', render);
+
+  // ====== EXPORT / IMPORT (admin only) ======
+  btnExport.addEventListener('click', () => {
+    if (!isAdmin) return alert('Admins only');
+    const csv = toCSV(rows, ['barcode','name','unit','pack_size','photo_url','owner_email','updated_at']);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `catalogue_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  });
+
+  inImport.addEventListener('change', async () => {
+    if (!isAdmin) return alert('Admins only');
+    const file = inImport.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const header = lines.shift().split(',');
+    const idx = (k)=> header.findIndex(h => h.trim().toLowerCase()===k);
+    const ib = idx('barcode'), iname = idx('name'), iunit = idx('unit'), ipack = idx('pack_size'), iphoto = idx('photo_url');
+    if (ib<0 || iname<0) { alert('CSV needs at least barcode & name'); return; }
+    const payloads = lines.map(line => {
+      const cells = parseCSVLine(line, header.length);
+      return {
+        barcode: cells[ib]?.trim(),
+        name: (cells[iname]||'').trim(),
+        unit: (cells[iunit]||'').trim() || null,
+        pack_size: (cells[ipack]||'').trim() || null,
+        photo_url: (cells[iphoto]||'').trim() || null
+      };
+    }).filter(p => p.barcode && p.name);
+
+    for (const p of payloads) {
+      const { error } = await supa.from('catalogue').upsert(p, { onConflict: 'org_id,barcode' });
+      if (error) console.warn('import row error', error);
+    }
+    alert('Import done');
+    await refresh();
+    inImport.value = '';
+  });
+
+  function toCSV(arr, cols) {
+    const header = cols.join(',');
+    const lines = arr.map(r => cols.map(c => csvCell(r[c])).join(','));
+    return [header, ...lines].join('\n');
+  }
+  function csvCell(v) {
+    if (v == null) return '';
+    const s = String(v).replaceAll('"','""');
+    if (/[",\n]/.test(s)) return `"${s}"`;
+    return s;
+  }
+  function parseCSVLine(line, ncols) {
+    const out = []; let cur = ''; let inQ=false;
+    for (let i=0;i<line.length;i++){
+      const ch=line[i];
+      if (inQ){
+        if (ch === '"' && line[i+1] === '"'){cur+='"'; i++;}
+        else if (ch === '"'){inQ=false;}
+        else cur+=ch;
+      } else {
+        if (ch === ','){out.push(cur); cur='';}
+        else if (ch === '"'){inQ=true;}
+        else cur+=ch;
+      }
+    }
+    out.push(cur);
+    while(out.length<ncols) out.push('');
+    return out;
+  }
+
+  // ====== TRANSACTIONS ======
+  $('btnLogMove').onclick = async () => {
+    const bc = mvBarcode.value.trim();
+    const qty = Number(mvQty.value);
+    const type = mvType.value;
+    const note = mvNote.value.trim() || null;
+    if (!bc) return alert('Enter a barcode');
+    if (!qty || isNaN(qty)) return alert('Enter a quantity');
+
+    // find catalogue_id
+    const { data: cat, error: ce } = await supa.from('catalogue').select('id,name').eq('barcode', bc).maybeSingle();
+    if (ce) return alert(ce.message);
+    if (!cat) return alert('No item found for that barcode');
+
+    const { error } = await supa.from('movements').insert({
+      catalogue_id: cat.id,
+      move_type: type,
+      qty,
+      note
+    });
+    if (error) return alert(error.message);
+    mvQty.value = ''; mvNote.value = '';
+    await loadRecentMoves(true);
+    alert('Movement logged');
+  };
+
+  async function loadRecentMoves(scrollTop=false){
+    // simple recent list of movements with join info
+    const { data, error } = await supa
+      .from('movements')
+      .select('created_at, move_type, qty, note, catalogue_id, catalogue:catalogue_id(barcode,name)')
+      .order('created_at',{ascending:false})
+      .limit(100);
+    if (error) { console.warn(error); return; }
+    tblMoves.innerHTML = '';
+    (data||[]).forEach(m=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${new Date(m.created_at).toLocaleString()}</td>
+        <td class="mono">${m.catalogue?.barcode||''}</td>
+        <td>${m.catalogue?.name||''}</td>
+        <td>${m.move_type}</td>
+        <td>${m.qty}</td>
+        <td>${m.note||''}</td>`;
+      tblMoves.appendChild(tr);
+    });
+    if (scrollTop) tblMoves.parentElement.scrollTop = 0;
+  }
+
+  // ====== REORDER (simple heuristic) ======
+  async function buildReorder(){
+    // last 30 days usage/receives
+    const since = new Date(Date.now()-30*24*60*60*1000).toISOString();
+    const { data, error } = await supa
+      .from('movements')
+      .select('move_type, qty, catalogue:catalogue_id(id,barcode,name)')
+      .gte('created_at', since);
+    if (error) { console.warn(error); return; }
+
+    const agg = new Map();
+    (data||[]).forEach(m=>{
+      const key = m.catalogue?.id; if (!key) return;
+      if(!agg.has(key)) agg.set(key,{ id:key, barcode:m.catalogue.barcode, name:m.catalogue.name, use:0, recv:0 });
+      const row = agg.get(key);
+      if (m.move_type === 'USE') row.use += Number(m.qty)||0;
+      if (m.move_type === 'RECEIVE') row.recv += Number(m.qty)||0;
+    });
+
+    const rows = [...agg.values()].sort((a,b)=> (b.use - b.recv) - (a.use - a.recv));
+    const tbody = $('tblReorder');
+    tbody.innerHTML = '';
+    rows.forEach(r=>{
+      const suggest = (r.use>0 && r.recv===0) ? 'Consider reordering' : (r.use>r.recv ? 'Monitor' : '');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="mono">${r.barcode||''}</td><td>${r.name||''}</td>
+        <td>${r.use}</td><td>${r.recv}</td><td>${suggest}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ====== BARCODE SCANNER (ZXing) ======
+  async function openScanner(targetInput){
+    activeTargetInput = targetInput;
+    scanModal.classList.remove('hidden');
+    try{
+      if (!codeReader) codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+      const videoInputDevices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+      const backCam = videoInputDevices.find(d=>/back|rear|environment/i.test(d.label))?.deviceId || undefined;
+
+      await codeReader.decodeFromVideoDevice(backCam, video, (result, err, controls)=>{
+        if (result) {
+          activeTargetInput.value = result.getText();
+          controls.stop();
+          closeScanner();
+          // small UX: focus next field
+          if (activeTargetInput === inBarcode) inName.focus();
+          if (activeTargetInput === mvBarcode) mvQty.focus();
+        }
+      });
+    }catch(e){
+      alert('Unable to start camera: ' + (e.message||e));
+      closeScanner();
+    }
+  }
+  function closeScanner(){
+    scanModal.classList.add('hidden');
+    try{ codeReader && codeReader.reset(); }catch(e){}
+    activeTargetInput = null;
+  }
+  $('btnCloseModal').onclick = closeScanner;
+  $('btnScan').onclick = ()=> openScanner(inBarcode);
+  $('btnScanTx').onclick = ()=> openScanner(mvBarcode);
+
 })();
 </script>
 </body>
