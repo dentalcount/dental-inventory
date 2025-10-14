@@ -3,31 +3,26 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Dental Inventory – Sign In</title>
+<title>Dental Inventory</title>
 
-<!-- Base href helps GitHub Pages subpath routing -->
-<base href="/dental-inventory/">
+<!-- Inline favicon -->
+<link rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
-<!-- Inline favicon (avoid 404) -->
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
-
-<!-- Supabase UMD (no defer) -->
+<!-- Supabase UMD -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 
 <style>
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:#e5e7eb}
   .wrap{max-width:960px;margin:0 auto;padding:20px}
   .card{background:#0c1426;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin:14px 0}
-  input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:#e5e7eb}
+  input,button{width:100%;padding:.7rem .8rem;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0d1526;color:#e5e7eb}
   input:focus{outline:none;border-color:#22d3ee}
+  button{cursor:pointer}
+  .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700;border:none}
+  .btn.alt{background:#1f2937;border:none}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700;border:none;cursor:pointer}
-  .btn.alt{background:#1f2937;border:none;cursor:pointer}
   .hidden{display:none}
-  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-  table{width:100%;border-collapse:collapse}
-  td{padding:6px;vertical-align:top;border-bottom:1px dashed rgba(255,255,255,.1)}
-  .ok{color:#22c55e}.warn{color:#fbbf24}.err{color:#f87171}
 </style>
 </head>
 <body>
@@ -35,43 +30,25 @@
 
   <h1>Dental Inventory</h1>
 
-  <!-- AUTH CARD -->
   <div id="authCard" class="card">
     <div class="row">
       <div>
         <label>Email (Magic Link)</label>
-        <input id="email" type="email" placeholder="you@clinic.com" />
+        <input id="email" type="email" placeholder="you@clinic.com"/>
       </div>
       <div style="align-self:end">
-        <button id="btnMagic" class="btn primary">Send Sign-In Link</button>
+        <button id="btnMagic" class="btn primary">Send Link</button>
       </div>
     </div>
-
     <div class="row" style="margin-top:10px">
       <div><button id="btnGoogle" class="btn alt">Continue with Google</button></div>
       <div><button id="btnReset" class="btn alt">Reset Session</button></div>
     </div>
-
-    <div class="card" style="margin-top:14px">
-      <strong>Debug</strong>
-      <table class="mono" style="margin-top:8px">
-        <tr><td>Location</td><td id="dbgHref"></td></tr>
-        <tr><td>Has code/hash?</td><td id="dbgFlags"></td></tr>
-        <tr><td>Session present?</td><td id="dbgSession"></td></tr>
-        <tr><td>User</td><td id="dbgUser"></td></tr>
-        <tr><td>Last error</td><td id="dbgErr"></td></tr>
-      </table>
-      <div style="margin-top:8px">
-        <button id="btnForceExchange" class="btn alt">Force exchangeCodeForSession()</button>
-        <button id="btnShowApp" class="btn alt">Show App (test)</button>
-      </div>
-    </div>
   </div>
 
-  <!-- APP CARD (your full app mounts here once signed in) -->
   <div id="app" class="card hidden">
     <h2>Signed in ✅</h2>
-    <p>Session established. From here you can drop in the full catalogue UI again. For now this proves auth works.</p>
+    <p>You’re authenticated. The full catalogue UI will render here.</p>
     <button id="btnSignOut" class="btn alt">Sign out</button>
   </div>
 
@@ -81,118 +58,64 @@
 (function boot(){
   if(!window.supabase) return setTimeout(boot,10);
 
-  // ====== CONFIG –– FILL THESE ======
-  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // EXACT, trailing slash
-  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';       // your project URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';                     // your anon key
-  if(!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)){ alert('Config error: bad SUPABASE_URL'); return; }
+  // ---------- CONFIG ----------
+  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/';
+  const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
+  const SUPABASE_ANON_KEY =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
 
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
+    auth: { persistSession:true, detectSessionInUrl:true, flowType:'implicit' }
   });
 
-  // ====== ELEMENTS ======
+  // ---------- DOM ----------
   const $ = id => document.getElementById(id);
   const authCard = $('authCard');
   const app = $('app');
-  const dbgHref = $('dbgHref');
-  const dbgFlags = $('dbgFlags');
-  const dbgSession = $('dbgSession');
-  const dbgUser = $('dbgUser');
-  const dbgErr = $('dbgErr');
 
-  // ====== DEBUG HELPERS ======
-  let lastError = null;
-  function setDebugFlags() {
-    const href = window.location.href;
-    const hasCode = href.includes('?code=') || href.includes('&code=');
-    const hasHash = href.includes('#access_token=');
-    dbgHref.textContent = href;
-    dbgFlags.textContent = `code=${hasCode}, hash=${hasHash}`;
-  }
-  async function setDebugSession() {
-    const { data: { session }, error } = await supa.auth.getSession();
-    dbgSession.textContent = session ? 'YES' : 'NO';
-    dbgUser.textContent = session?.user?.email || '';
-    if (error) { lastError = error; }
-    dbgErr.textContent = lastError ? JSON.stringify(lastError) : '';
-  }
-
-  // ====== COMPLETE RETURN (Google/Magic) ======
-  (async () => {
-    setDebugFlags();
-    try {
-      const href = window.location.href;
-      const needsExchange = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
-      if (needsExchange) {
-        const { error } = await supa.auth.exchangeCodeForSession(href);
-        if (error) { lastError = error; console.error('exchangeCodeForSession', error); }
-        // Clean URL either way so refreshes don't re-exchange
-        window.history.replaceState({}, '', REDIRECT_URL);
-      }
-    } catch (e) {
-      lastError = e;
-      console.error('exchange error', e);
-    }
-    await setDebugSession();
-    // Toggle UI based on session
-    const { data: { session } } = await supa.auth.getSession();
-    if (session?.user) {
-      authCard.classList.add('hidden');
-      app.classList.remove('hidden');
-    }
-  })();
-
-  // ====== AUTH BUTTONS ======
+  // ---------- AUTH ----------
   $('btnMagic').onclick = async () => {
     const email = $('email').value.trim();
-    if (!email) return alert('Enter your email');
+    if(!email) return alert('Enter your email first.');
     const { error } = await supa.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: REDIRECT_URL }
+      options:{ emailRedirectTo: REDIRECT_URL }
     });
-    if (error) { lastError = error; await setDebugSession(); return alert(error.message); }
+    if(error) return alert(error.message);
     alert('Check your email for the sign-in link.');
   };
 
   $('btnGoogle').onclick = async () => {
     const { error } = await supa.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: REDIRECT_URL, queryParams: { prompt: 'select_account' } }
+      provider:'google',
+      options:{ redirectTo: REDIRECT_URL, queryParams:{ prompt:'select_account' } }
     });
-    if (error) { lastError = error; await setDebugSession(); alert(error.message); }
+    if(error) alert(error.message);
   };
 
   $('btnReset').onclick = async () => {
     await supa.auth.signOut();
-    localStorage.clear(); sessionStorage.clear();
+    localStorage.clear();sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
 
-  $('btnForceExchange').onclick = async () => {
-    const { error } = await supa.auth.exchangeCodeForSession(window.location.href);
-    if (error) { lastError = error; alert('Exchange error: ' + error.message); }
-    window.history.replaceState({}, '', REDIRECT_URL);
-    await setDebugSession();
-  };
+  $('btnSignOut').onclick = $('btnReset').onclick;
 
-  $('btnShowApp').onclick = async () => {
-    const { data: { session } } = await supa.auth.getSession();
-    if (session?.user) { authCard.classList.add('hidden'); app.classList.remove('hidden'); }
-    else alert('No session yet.');
-  };
+  // ---------- SESSION WATCH ----------
+  async function checkSession(){
+    const { data:{ session } } = await supa.auth.getSession();
+    if(session?.user){
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
+    }else{
+      authCard.classList.remove('hidden');
+      app.classList.add('hidden');
+    }
+  }
 
-  $('btnSignOut').onclick = async () => {
-    await supa.auth.signOut();
-    localStorage.clear(); sessionStorage.clear();
-    location.replace(REDIRECT_URL);
-  };
-
-  // Keep debug fresh on auth changes
-  supa.auth.onAuthStateChange(async () => { await setDebugSession(); });
-
+  supa.auth.onAuthStateChange(checkSession);
+  checkSession();  // initial run
 })();
 </script>
 </body>
 </html>
-
