@@ -4,21 +4,28 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Dental Inventory</title>
+
+  <!-- Inline favicon: stops 404s on GitHub Pages subpath -->
+  <link rel="icon"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
+
+  <!-- Load Supabase UMD FIRST (no defer!) so window.supabase exists for our inline script -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+
   <style>
-    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee;--danger:#ef4444;--ok:#22c55e}
+    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee}
     html,body{margin:0;height:100%;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:var(--text)}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
     .card{background:linear-gradient(180deg,#0b1220,#0b1220) padding-box,linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,0)) border-box;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
     h1{font-weight:700;letter-spacing:.3px}
     label{display:block;margin:.5rem 0 .25rem;color:var(--muted);font-size:.9rem}
-    input,select,button,textarea{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:var(--text);outline:none}
-    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:var(--text);outline:none}
+    input:focus{border-color:var(--accent)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
     .btn{cursor:pointer;border:none}
     .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700}
-    .btn.reset{background:#1f2937}
-    .btn.danger{background:#2a0f12;border:1px solid rgba(239,68,68,.4);color:#fecaca}
+    .btn.alt{background:#1f2937}
     .pill{display:inline-flex;gap:8px;align-items:center;padding:.25rem .6rem;border-radius:999px;background:#102037;border:1px solid rgba(255,255,255,.08);color:#a5b4fc}
     table{width:100%;border-collapse:separate;border-spacing:0 8px}
     th,td{padding:.65rem .6rem;text-align:left}
@@ -33,12 +40,11 @@
     .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.75rem}
     .owner{color:#93c5fd}
     .srch{display:flex;gap:10px;align-items:center}
-    .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12)}
+    .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12);cursor:pointer}
     .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
     .tight{max-width:680px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
   </style>
- <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 </head>
 <body>
 <div class="wrap">
@@ -55,9 +61,19 @@
         <button id="btnMagic" class="btn primary">Send Sign-In Link</button>
       </div>
     </div>
-    <div class="flex" style="margin-top:8px">
-      <button id="btnReset" class="btn reset">Reset Session</button>
-      <span class="hint">We use passwordless sign-in. Check your email and open the link on this device.</span>
+
+    <!-- OPTIONAL: Google sign-in button -->
+    <div class="row" style="margin-top:8px">
+      <div>
+        <button id="btnGoogle" class="btn alt" title="Sign in with Google (optional)">Continue with Google</button>
+      </div>
+      <div>
+        <button id="btnReset" class="btn alt" title="Clear session and reload">Reset Session</button>
+      </div>
+    </div>
+
+    <div class="hint" style="margin-top:8px">
+      Magic link avoids OAuth domain hassles on GitHub Pages. Google works too—just enable it in Supabase and we’ll redirect back here.
     </div>
   </div>
 
@@ -101,7 +117,7 @@
         <span class="hint">This photo will be uploaded when you save.</span>
       </div>
       <div class="hint tight" style="margin-top:8px">
-        Tip: If the barcode already exists in your org, this will update Unit/Pack/Photo (Name stays unless you provided a new one).
+        Tip: If the barcode already exists in your org, this updates Unit/Pack/Photo (Name stays unless you enter a new one).
       </div>
     </div>
 
@@ -143,20 +159,20 @@
   </div>
 </div>
 
+<!-- App script -->
 <script>
-(async () => {
-  // -------- Supabase init --------
-  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-  const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      persistSession: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce'
-    }
+(function boot() {
+  // Guard in case CDN is slow; try again until window.supabase exists
+  if (!window.supabase) return setTimeout(boot, 10);
+
+  // ====== CONFIG ======
+  const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
   });
 
-  // Elements
+  // ====== DOM ======
   const el = id => document.getElementById(id);
   const authCard = el('authCard');
   const app = el('app');
@@ -180,19 +196,34 @@
   let profile = null;     // { id, email, role, org_id }
   let isAdmin = false;
   let viewAll = false;
-  let currentOrg = null;
   let rows = [];
 
-  // --- Auth UI ---
+  // ====== AUTH UI ======
   el('btnMagic').onclick = async () => {
     const email = el('email').value.trim();
     if (!email) return alert('Enter your email');
-    const { error } = await supa.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href }});
+    const { error } = await supa.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href }
+    });
     if (error) return alert(error.message);
     alert('Check your email for the sign-in link.');
   };
+
+  // Optional Google OAuth
+  el('btnGoogle').onclick = async () => {
+    const { error } = await supa.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.href,
+        queryParams: { prompt: 'select_account' }
+      }
+    });
+    if (error) alert(error.message);
+  };
+
   el('btnReset').onclick = async () => {
-    await supa.auth.signOut(); // keep only reset, signout removed elsewhere
+    await supa.auth.signOut(); // Reset only (no separate signout button)
     localStorage.clear();
     sessionStorage.clear();
     location.reload();
@@ -209,7 +240,7 @@
     }
   });
 
-  // --- Session bootstrap ---
+  // ====== SESSION BOOTSTRAP ======
   supa.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       await loadProfile();
@@ -222,16 +253,17 @@
     }
   });
 
-  // If already signed in
-  const { data: { session } } = await supa.auth.getSession();
-  if (session?.user) {
-    await loadProfile();
-    await refresh();
-    authCard.classList.add('hidden');
-    app.classList.remove('hidden');
-  }
+  (async () => {
+    const { data: { session } } = await supa.auth.getSession();
+    if (session?.user) {
+      await loadProfile();
+      await refresh();
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
+    }
+  })();
 
-  // --- Load profile / role ---
+  // ====== PROFILE / ROLE ======
   async function loadProfile() {
     const { data: { user } } = await supa.auth.getUser();
     if (!user) return;
@@ -240,26 +272,22 @@
       .select('id,email,role,org_id')
       .eq('id', user.id)
       .single();
-    if (error) {
-      console.warn('profile load error', error);
-      return;
-    }
+    if (error) { console.warn('profile load error', error); return; }
     profile = data;
     isAdmin = profile.role === 'admin';
-    currentOrg = profile.org_id;
     roleBadge.textContent = isAdmin ? 'Admin' : 'User';
     roleBadge.classList.remove('hidden');
-    orgHint.textContent = `Org: ${currentOrg?.slice(0,8)}…`;
-    // Admin UI bits
+    orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
+
     chkAll.disabled = !isAdmin;
     btnExport.disabled = !isAdmin;
     lblImport.classList.toggle('hidden', !isAdmin);
   }
 
-  // --- Photo uploader ---
+  // ====== STORAGE: PHOTO UPLOAD ======
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
-    const ext = file.name.split('.').pop() || 'jpg';
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${profile.id}/${itemId}_${Date.now()}.${ext}`;
     const { error } = await supa.storage.from('product_photos').upload(path, file, { upsert: false });
     if (error) { alert('Photo upload failed: ' + error.message); return null; }
@@ -267,7 +295,7 @@
     return data?.publicUrl || null;
   }
 
-  // --- Add / Upsert item ---
+  // ====== ADD / UPSERT ITEM ======
   el('btnAdd').onclick = async () => {
     const barcode = inBarcode.value.trim();
     const name = inName.value.trim();
@@ -275,45 +303,31 @@
     const pack = inPack.value.trim() || null;
     if (!barcode) return alert('Barcode is required');
 
-    // Check if exists
     const { data: existing, error: exErr } = await supa
       .from('catalogue')
       .select('id,name')
       .eq('barcode', barcode)
       .limit(1)
       .maybeSingle();
-
     if (exErr) return alert(exErr.message);
 
-    // Enforce name for NEW items
-    if (!existing && !name) {
-      return alert('Name is required for new items before adding to catalogue.');
-    }
+    if (!existing && !name) return alert('Name is required for new items.');
 
+    const tmpId = existing?.id || crypto.randomUUID();
     let photo_url = null;
-    // Create a temp id for path if inserting new
-    const tempId = existing?.id || crypto.randomUUID();
-    if (inPhoto.files?.[0]) {
-      photo_url = await uploadPhoto(inPhoto.files[0], tempId);
-    }
+    if (inPhoto.files?.[0]) photo_url = await uploadPhoto(inPhoto.files[0], tmpId);
 
     const payload = {
       barcode,
-      // Only send name if provided (so we don't overwrite accidentally on updates)
       ...(name ? { name } : {}),
-      unit: unit,
+      unit,
       pack_size: pack,
       ...(photo_url ? { photo_url } : {})
     };
 
-    // If exists, update; else insert
-    let resp;
-    if (existing) {
-      resp = await supa.from('catalogue').update(payload).eq('id', existing.id).select().single();
-    } else {
-      // org_id and user_id set via trigger; WITH CHECK gate will enforce same-org
-      resp = await supa.from('catalogue').insert(payload).select().single();
-    }
+    const resp = existing
+      ? await supa.from('catalogue').update(payload).eq('id', existing.id).select().single()
+      : await supa.from('catalogue').insert(payload).select().single();
 
     if (resp.error) return alert(resp.error.message);
     clearInputs();
@@ -329,15 +343,13 @@
     photoPreviewWrap.classList.add('hidden');
   }
 
-  // --- Fetch catalogue (admin all vs org) ---
+  // ====== FETCH & RENDER ======
   async function fetchCatalogue() {
-    const base = supa.from('v_catalogue_with_owner').select('*').order('updated_at', { ascending: false });
-    if (isAdmin && viewAll) {
-      return await base.limit(1000);
-    } else {
-      // RLS will already restrict to org; still call base
-      return await base.limit(1000);
-    }
+    // v_catalogue_with_owner respects RLS; admin will see all if policy allows
+    return await supa.from('v_catalogue_with_owner')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1000);
   }
 
   async function refresh() {
@@ -365,27 +377,27 @@
         <td class="owner">${r.owner_email ? r.owner_email : ''}</td>
         <td>
           <div class="flex">
-            <label class="file" style="cursor:pointer">
+            <label class="file">
               <input type="file" accept="image/*" class="hidden" data-photo="${r.id}"/>
               <span>Change photo</span>
             </label>
-            ${isAdmin ? `<button class="btn danger" data-del="${r.id}">Delete</button>` : ''}
+            ${isAdmin ? `<button class="btn alt" data-del="${r.id}">Delete</button>` : ''}
           </div>
         </td>
       `;
       tblBody.appendChild(tr);
     }
-    // bind inline editors
+    // Bind inline editors
     tblBody.querySelectorAll('input[data-edit]').forEach(inp => {
       inp.addEventListener('change', onInlineEdit);
       inp.addEventListener('blur', onInlineEdit);
       inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onInlineEdit.call(inp,e); });
     });
-    // bind photo changers
+    // Bind photo changers
     tblBody.querySelectorAll('input[data-photo]').forEach(inp => {
       inp.addEventListener('change', onPhotoChange);
     });
-    // bind deletes
+    // Bind deletes (admin)
     tblBody.querySelectorAll('button[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this item?')) return;
@@ -411,7 +423,6 @@
     const id = input.getAttribute('data-edit');
     const field = input.getAttribute('data-field');
     const value = input.value.trim() || null;
-    // Prevent blanking the required name
     if (field === 'name' && (!value || value.length === 0)) {
       alert('Name is required.');
       return render();
@@ -435,10 +446,10 @@
   inSearch.addEventListener('input', render);
   el('btnRefresh').onclick = refresh;
 
-  // Admin: view all toggle
   chkAll.addEventListener('change', async () => {
+    // View-all controlled by RLS and the view; we keep the UI toggle for admins.
     if (!isAdmin) return;
-    viewAll = chkAll.checked;
+    // No client filter here; server-side already returns what admin can see.
     await refresh();
   });
 
@@ -467,7 +478,8 @@
 
   // Import CSV (admin only): expects columns: barcode,name,unit,pack_size,photo_url
   inImport.addEventListener('change', async () => {
-    if (!isAdmin) return alert('Admins only');
+    const isAdminNow = isAdmin; // guard in case profile changes mid-session
+    if (!isAdminNow) return alert('Admins only');
     const file = inImport.files?.[0];
     if (!file) return;
     const text = await file.text();
@@ -476,6 +488,7 @@
     const idx = (k)=> header.findIndex(h => h.trim().toLowerCase()===k);
     const ib = idx('barcode'), iname = idx('name'), iunit = idx('unit'), ipack = idx('pack_size'), iphoto = idx('photo_url');
     if (ib<0 || iname<0) { alert('CSV needs at least barcode & name columns'); return; }
+
     const payloads = lines.map(line => {
       const cells = parseCSVLine(line, header.length);
       return {
@@ -486,11 +499,11 @@
         photo_url: (cells[iphoto]||'').trim() || null
       };
     }).filter(p => p.barcode && p.name);
-    // Upsert by (org, barcode)
+
     for (const p of payloads) {
       const { error } = await supa.from('catalogue')
         .upsert(p, { onConflict: 'org_id,barcode' });
-      if (error) { console.warn('import row error', error); }
+      if (error) console.warn('import row error', error);
     }
     alert('Import done');
     await refresh();
@@ -515,8 +528,7 @@
     while(out.length<ncols) out.push('');
     return out;
   }
-
-})();
+})(); // boot
 </script>
 </body>
 </html>
