@@ -84,7 +84,7 @@
   // ====== CONFIG –– FILL THESE ======
   const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // EXACT, trailing slash
   const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';       // your project URL
-  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';                     // your anon key
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';                     // your anon key
   if(!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)){ alert('Config error: bad SUPABASE_URL'); return; }
 
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -195,3 +195,4 @@
 </script>
 </body>
 </html>
+
