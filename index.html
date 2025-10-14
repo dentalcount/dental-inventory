@@ -1,470 +1,197 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Dental Inventory</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dental Inventory – Sign In</title>
 
-  <!-- Inline favicon so no 404 on subpath -->
-  <link rel="icon"
-        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
+<!-- Base href helps GitHub Pages subpath routing -->
+<base href="/dental-inventory/">
 
-  <!-- Load Supabase UMD BEFORE app code (no defer) -->
-  <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+<!-- Inline favicon (avoid 404) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
-  <style>
-    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee;--danger:#ef4444}
-    html,body{margin:0;height:100%;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:var(--text)}
-    .wrap{max-width:1100px;margin:0 auto;padding:20px}
-    .card{background:linear-gradient(180deg,#0b1220,#0b1220) padding-box,linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,0)) border-box;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
-    h1{font-weight:700;letter-spacing:.3px}
-    label{display:block;margin:.5rem 0 .25rem;color:var(--muted);font-size:.9rem}
-    input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:var(--text);outline:none}
-    input:focus{border-color:var(--accent)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-    .btn{cursor:pointer;border:none}
-    .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700}
-    .btn.alt{background:#1f2937}
-    .pill{display:inline-flex;gap:8px;align-items:center;padding:.25rem .6rem;border-radius:999px;background:#102037;border:1px solid rgba(255,255,255,.08);color:#a5b4fc}
-    table{width:100%;border-collapse:separate;border-spacing:0 8px}
-    th,td{padding:.65rem .6rem;text-align:left}
-    thead th{font-size:.85rem;color:var(--muted);font-weight:600}
-    tbody tr{background:#0c1426;border:1px solid rgba(255,255,255,.06)}
-    tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
-    tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
-    .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .right{margin-left:auto}
-    .hint{color:var(--muted);font-size:.85rem}
-    .hidden{display:none !important}
-    .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.75rem}
-    .owner{color:#93c5fd}
-    .srch{display:flex;gap:10px;align-items:center}
-    .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12);cursor:pointer}
-    .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
-    .tight{max-width:680px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
-  </style>
+<!-- Supabase UMD (no defer) -->
+<script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+
+<style>
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:#e5e7eb}
+  .wrap{max-width:960px;margin:0 auto;padding:20px}
+  .card{background:#0c1426;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;margin:14px 0}
+  input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:#e5e7eb}
+  input:focus{outline:none;border-color:#22d3ee}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700;border:none;cursor:pointer}
+  .btn.alt{background:#1f2937;border:none;cursor:pointer}
+  .hidden{display:none}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+  table{width:100%;border-collapse:collapse}
+  td{padding:6px;vertical-align:top;border-bottom:1px dashed rgba(255,255,255,.1)}
+  .ok{color:#22c55e}.warn{color:#fbbf24}.err{color:#f87171}
+</style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Dental Inventory <span id="roleBadge" class="pill hidden"></span></h1>
 
-  <!-- Auth -->
+  <h1>Dental Inventory</h1>
+
+  <!-- AUTH CARD -->
   <div id="authCard" class="card">
     <div class="row">
       <div>
-        <label>Email for magic link</label>
-        <input id="email" type="email" placeholder="you@clinic.com"/>
+        <label>Email (Magic Link)</label>
+        <input id="email" type="email" placeholder="you@clinic.com" />
       </div>
       <div style="align-self:end">
         <button id="btnMagic" class="btn primary">Send Sign-In Link</button>
       </div>
     </div>
 
-    <!-- Google + Reset -->
-    <div class="row" style="margin-top:8px">
-      <div>
-        <button id="btnGoogle" class="btn alt" title="Sign in with Google">Continue with Google</button>
-      </div>
-      <div>
-        <button id="btnReset" class="btn alt" title="Clear session and reload">Reset Session</button>
-      </div>
+    <div class="row" style="margin-top:10px">
+      <div><button id="btnGoogle" class="btn alt">Continue with Google</button></div>
+      <div><button id="btnReset" class="btn alt">Reset Session</button></div>
     </div>
 
-    <div class="hint" style="margin-top:8px">
-      Tip: Magic Link avoids OAuth domain quirks on GitHub Pages. Google works too once URL settings match exactly.
+    <div class="card" style="margin-top:14px">
+      <strong>Debug</strong>
+      <table class="mono" style="margin-top:8px">
+        <tr><td>Location</td><td id="dbgHref"></td></tr>
+        <tr><td>Has code/hash?</td><td id="dbgFlags"></td></tr>
+        <tr><td>Session present?</td><td id="dbgSession"></td></tr>
+        <tr><td>User</td><td id="dbgUser"></td></tr>
+        <tr><td>Last error</td><td id="dbgErr"></td></tr>
+      </table>
+      <div style="margin-top:8px">
+        <button id="btnForceExchange" class="btn alt">Force exchangeCodeForSession()</button>
+        <button id="btnShowApp" class="btn alt">Show App (test)</button>
+      </div>
     </div>
   </div>
 
-  <!-- App -->
-  <div id="app" class="hidden">
-    <!-- New item / scan -->
-    <div class="card">
-      <div class="flex">
-        <div class="pill">Add / Scan Item</div>
-        <span class="right hint">New items require a <strong>Name</strong> before they’re saved.</span>
-      </div>
-      <div class="row3" style="margin-top:12px">
-        <div>
-          <label>Barcode</label>
-          <input id="inBarcode" class="mono" placeholder="Scan or type…"/>
-        </div>
-        <div>
-          <label>Item Name <span class="hint">(required for new items)</span></label>
-          <input id="inName" placeholder="e.g., GIC Fuji IX Capsule A2"/>
-        </div>
-        <div>
-          <label>Unit</label>
-          <input id="inUnit" placeholder="box / pack / ea"/>
-        </div>
-      </div>
-      <div class="row3">
-        <div>
-          <label>Pack Size</label>
-          <input id="inPack" placeholder="e.g., x10 / 50pcs / 3g"/>
-        </div>
-        <div>
-          <label>Photo (capture or choose)</label>
-          <input id="inPhoto" type="file" accept="image/*" capture="environment"/>
-        </div>
-        <div style="align-self:end">
-          <button id="btnAdd" class="btn primary">Save / Upsert</button>
-        </div>
-      </div>
-      <div id="photoPreviewWrap" class="flex hidden" style="margin-top:8px">
-        <img id="photoPreview" class="preview" alt="preview"/>
-        <span class="hint">This photo will be uploaded when you save.</span>
-      </div>
-      <div class="hint tight" style="margin-top:8px">
-        If the barcode already exists in your org, this updates Unit/Pack/Photo (Name stays unless you enter a new one).
-      </div>
-    </div>
-
-    <!-- Catalogue -->
-    <div class="card">
-      <div class="flex">
-        <div class="pill">Catalogue</div>
-        <div class="srch right">
-          <input id="inSearch" placeholder="Search name or barcode…" class="mono"/>
-          <button id="btnRefresh" class="btn">Refresh</button>
-          <button id="btnExport" class="btn" title="CSV export (admin only)">Export CSV</button>
-          <label class="file hidden" id="lblImport">
-            <input id="inImport" type="file" accept=".csv" class="hidden"/>
-            <span>Import CSV (admin)</span>
-          </label>
-        </div>
-      </div>
-      <div class="hint" style="margin:6px 0 10px">
-        Admins can toggle <label style="display:inline;margin:0 6px"><input id="chkAll" type="checkbox"/> View all users</label>
-        <span id="orgHint" class="badge"></span>
-      </div>
-      <div style="overflow:auto">
-        <table>
-          <thead>
-          <tr>
-            <th>Photo</th>
-            <th>Barcode</th>
-            <th>Name</th>
-            <th>Unit</th>
-            <th>Pack</th>
-            <th class="owner">Owner</th>
-            <th>Actions</th>
-          </tr>
-          </thead>
-          <tbody id="tblBody"></tbody>
-        </table>
-      </div>
-    </div>
+  <!-- APP CARD (your full app mounts here once signed in) -->
+  <div id="app" class="card hidden">
+    <h2>Signed in ✅</h2>
+    <p>Session established. From here you can drop in the full catalogue UI again. For now this proves auth works.</p>
+    <button id="btnSignOut" class="btn alt">Sign out</button>
   </div>
+
 </div>
 
-<!-- App script -->
 <script>
-(function boot() {
-  if (!window.supabase) return setTimeout(boot, 10);
+(function boot(){
+  if(!window.supabase) return setTimeout(boot,10);
 
-  // ====== CONFIG ======
-  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // MUST match Supabase auth URLs
-
-  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co'; // <-- YOUR real project URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';               // <-- YOUR real anon key
-
-  // Basic guard to avoid "Invalid URL"
-  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
-    alert('Config error: SUPABASE_URL is missing/invalid'); return;
-  }
+  // ====== CONFIG –– FILL THESE ======
+  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // EXACT, trailing slash
+  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';       // your project URL
+  const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';                     // your anon key
+  if(!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)){ alert('Config error: bad SUPABASE_URL'); return; }
 
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+    auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
   });
 
-  // ====== Explicitly complete OAuth / Magic-link on return, then clean URL ======
-  (async () => {
+  // ====== ELEMENTS ======
+  const $ = id => document.getElementById(id);
+  const authCard = $('authCard');
+  const app = $('app');
+  const dbgHref = $('dbgHref');
+  const dbgFlags = $('dbgFlags');
+  const dbgSession = $('dbgSession');
+  const dbgUser = $('dbgUser');
+  const dbgErr = $('dbgErr');
+
+  // ====== DEBUG HELPERS ======
+  let lastError = null;
+  function setDebugFlags() {
     const href = window.location.href;
-    if (href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=')) {
-      const { error } = await supa.auth.exchangeCodeForSession(href);
-      // Clean the URL (prevents re-exchange on refresh)
-      window.history.replaceState({}, '', REDIRECT_URL);
-      if (error) {
-        console.error('exchangeCodeForSession error', error);
-        alert('Login could not be completed. Please try again.');
+    const hasCode = href.includes('?code=') || href.includes('&code=');
+    const hasHash = href.includes('#access_token=');
+    dbgHref.textContent = href;
+    dbgFlags.textContent = `code=${hasCode}, hash=${hasHash}`;
+  }
+  async function setDebugSession() {
+    const { data: { session }, error } = await supa.auth.getSession();
+    dbgSession.textContent = session ? 'YES' : 'NO';
+    dbgUser.textContent = session?.user?.email || '';
+    if (error) { lastError = error; }
+    dbgErr.textContent = lastError ? JSON.stringify(lastError) : '';
+  }
+
+  // ====== COMPLETE RETURN (Google/Magic) ======
+  (async () => {
+    setDebugFlags();
+    try {
+      const href = window.location.href;
+      const needsExchange = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
+      if (needsExchange) {
+        const { error } = await supa.auth.exchangeCodeForSession(href);
+        if (error) { lastError = error; console.error('exchangeCodeForSession', error); }
+        // Clean URL either way so refreshes don't re-exchange
+        window.history.replaceState({}, '', REDIRECT_URL);
       }
+    } catch (e) {
+      lastError = e;
+      console.error('exchange error', e);
+    }
+    await setDebugSession();
+    // Toggle UI based on session
+    const { data: { session } } = await supa.auth.getSession();
+    if (session?.user) {
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
     }
   })();
 
-  // ====== DOM ======
-  const el = id => document.getElementById(id);
-  const authCard = el('authCard');
-  const app = el('app');
-  const roleBadge = el('roleBadge');
-  const orgHint = el('orgHint');
-
-  const inBarcode = el('inBarcode');
-  const inName = el('inName');
-  const inUnit = el('inUnit');
-  const inPack = el('inPack');
-  const inPhoto = el('inPhoto');
-  const photoPreviewWrap = el('photoPreviewWrap');
-  const photoPreview = el('photoPreview');
-  const inSearch = el('inSearch');
-  const tblBody = el('tblBody');
-  const chkAll = el('chkAll');
-  const btnExport = el('btnExport');
-  const inImport = el('inImport');
-  const lblImport = el('lblImport');
-
-  let profile = null;
-  let isAdmin = false;
-  let rows = [];
-
-  // ====== AUTH UI ======
-  el('btnMagic').onclick = async () => {
-    const email = el('email').value.trim();
+  // ====== AUTH BUTTONS ======
+  $('btnMagic').onclick = async () => {
+    const email = $('email').value.trim();
     if (!email) return alert('Enter your email');
     const { error } = await supa.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: REDIRECT_URL }
     });
-    if (error) return alert(error.message);
+    if (error) { lastError = error; await setDebugSession(); return alert(error.message); }
     alert('Check your email for the sign-in link.');
   };
 
-  el('btnGoogle').onclick = async () => {
+  $('btnGoogle').onclick = async () => {
     const { error } = await supa.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: REDIRECT_URL,
-        queryParams: { prompt: 'select_account' }
-      }
+      options: { redirectTo: REDIRECT_URL, queryParams: { prompt: 'select_account' } }
     });
-    if (error) alert(error.message);
+    if (error) { lastError = error; await setDebugSession(); alert(error.message); }
   };
 
-  el('btnReset').onclick = async () => {
+  $('btnReset').onclick = async () => {
     await supa.auth.signOut();
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
 
-  inPhoto.addEventListener('change', () => {
-    const f = inPhoto.files?.[0];
-    if (f) {
-      const url = URL.createObjectURL(f);
-      photoPreview.src = url;
-      photoPreviewWrap.classList.remove('hidden');
-    } else {
-      photoPreviewWrap.classList.add('hidden');
-    }
-  });
-
-  // ====== SESSION BRIDGE ======
-  supa.auth.onAuthStateChange(async (_event, session) => {
-    if (session?.user) {
-      await loadProfile();
-      await refresh();
-      authCard.classList.add('hidden');
-      app.classList.remove('hidden');
-    } else {
-      authCard.classList.remove('hidden');
-      app.classList.add('hidden');
-    }
-  });
-
-  (async () => {
-    const { data: { session } } = await supa.auth.getSession();
-    if (session?.user) {
-      await loadProfile();
-      await refresh();
-      authCard.classList.add('hidden');
-      app.classList.remove('hidden');
-    }
-  })();
-
-  // ====== PROFILE / ROLE ======
-  async function loadProfile() {
-    const { data: { user } } = await supa.auth.getUser();
-    if (!user) return;
-    const { data, error } = await supa
-      .from('profiles')
-      .select('id,email,role,org_id')
-      .eq('id', user.id)
-      .single();
-    if (error) { console.warn('profile load error', error); return; }
-    profile = data;
-    isAdmin = profile.role === 'admin';
-    roleBadge.textContent = isAdmin ? 'Admin' : 'User';
-    roleBadge.classList.remove('hidden');
-    orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
-
-    // Admin UI bits
-    el('chkAll').disabled = !isAdmin;
-    btnExport.disabled = !isAdmin;
-    lblImport.classList.toggle('hidden', !isAdmin);
-  }
-
-  // ====== STORAGE: PHOTO UPLOAD ======
-  async function uploadPhoto(file, itemId) {
-    if (!file) return null;
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${profile.id}/${itemId}_${Date.now()}.${ext}`;
-    const { error } = await supa.storage.from('product_photos').upload(path, file, { upsert: false });
-    if (error) { alert('Photo upload failed: ' + error.message); return null; }
-    const { data } = supa.storage.from('product_photos').getPublicUrl(path);
-    return data?.publicUrl || null;
-  }
-
-  // ====== ADD / UPSERT ITEM ======
-  el('btnAdd').onclick = async () => {
-    const barcode = inBarcode.value.trim();
-    const name = inName.value.trim();
-    const unit = inUnit.value.trim() || null;
-    const pack = inPack.value.trim() || null;
-    if (!barcode) return alert('Barcode is required');
-
-    const { data: existing, error: exErr } = await supa
-      .from('catalogue')
-      .select('id,name')
-      .eq('barcode', barcode)
-      .limit(1)
-      .maybeSingle();
-    if (exErr) return alert(exErr.message);
-
-    if (!existing && !name) return alert('Name is required for new items.');
-
-    const tmpId = existing?.id || crypto.randomUUID();
-    let photo_url = null;
-    if (inPhoto.files?.[0]) photo_url = await uploadPhoto(inPhoto.files[0], tmpId);
-
-    const payload = {
-      barcode,
-      ...(name ? { name } : {}),
-      unit,
-      pack_size: pack,
-      ...(photo_url ? { photo_url } : {})
-    };
-
-    const resp = existing
-      ? await supa.from('catalogue').update(payload).eq('id', existing.id).select().single()
-      : await supa.from('catalogue').insert(payload).select().single();
-
-    if (resp.error) return alert(resp.error.message);
-    clearInputs();
-    await refresh();
+  $('btnForceExchange').onclick = async () => {
+    const { error } = await supa.auth.exchangeCodeForSession(window.location.href);
+    if (error) { lastError = error; alert('Exchange error: ' + error.message); }
+    window.history.replaceState({}, '', REDIRECT_URL);
+    await setDebugSession();
   };
 
-  function clearInputs() {
-    inBarcode.value = '';
-    inName.value = '';
-    inUnit.value = '';
-    inPack.value = '';
-    inPhoto.value = '';
-    photoPreviewWrap.classList.add('hidden');
-  }
+  $('btnShowApp').onclick = async () => {
+    const { data: { session } } = await supa.auth.getSession();
+    if (session?.user) { authCard.classList.add('hidden'); app.classList.remove('hidden'); }
+    else alert('No session yet.');
+  };
 
-  // ====== FETCH & RENDER ======
-  async function fetchCatalogue() {
-    return await supa.from('v_catalogue_with_owner')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1000);
-  }
+  $('btnSignOut').onclick = async () => {
+    await supa.auth.signOut();
+    localStorage.clear(); sessionStorage.clear();
+    location.replace(REDIRECT_URL);
+  };
 
-  async function refresh() {
-    const { data, error } = await fetchCatalogue();
-    if (error) { alert(error.message); return; }
-    rows = data || [];
-    render();
-  }
+  // Keep debug fresh on auth changes
+  supa.auth.onAuthStateChange(async () => { await setDebugSession(); });
 
-  function render() {
-    const q = inSearch.value.trim().toLowerCase();
-    const filtered = !q ? rows : rows.filter(r =>
-      (r.name||'').toLowerCase().includes(q) ||
-      (r.barcode||'').toLowerCase().includes(q)
-    );
-    tblBody.innerHTML = '';
-    for (const r of filtered) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${r.photo_url ? `<img src="${r.photo_url}" style="max-height:42px;border-radius:6px;border:1px solid rgba(255,255,255,.1)"/>` : ''}</td>
-        <td class="mono">${r.barcode||''}</td>
-        <td>${editable('name', r)}</td>
-        <td>${editable('unit', r)}</td>
-        <td>${editable('pack_size', r)}</td>
-        <td class="owner">${r.owner_email ? r.owner_email : ''}</td>
-        <td>
-          <div class="flex">
-            <label class="file">
-              <input type="file" accept="image/*" class="hidden" data-photo="${r.id}"/>
-              <span>Change photo</span>
-            </label>
-            ${isAdmin ? `<button class="btn alt" data-del="${r.id}">Delete</button>` : ''}
-          </div>
-        </td>
-      `;
-      tblBody.appendChild(tr);
-    }
-    // Inline editors
-    tblBody.querySelectorAll('input[data-edit]').forEach(inp => {
-      inp.addEventListener('change', onInlineEdit);
-      inp.addEventListener('blur', onInlineEdit);
-      inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onInlineEdit.call(inp,e); });
-    });
-    // Photo change
-    tblBody.querySelectorAll('input[data-photo]').forEach(inp => {
-      inp.addEventListener('change', onPhotoChange);
-    });
-    // Deletes
-    tblBody.querySelectorAll('button[data-del]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Delete this item?')) return;
-        const id = btn.getAttribute('data-del');
-        const { error } = await supa.from('catalogue').delete().eq('id', id);
-        if (error) return alert(error.message);
-        await refresh();
-      });
-    });
-  }
-
-  function editable(field, row) {
-    const val = (row[field] ?? '');
-    return `<input data-edit="${row.id}" data-field="${field}" value="${escapeHtml(val)}" />`;
-  }
-  function escapeHtml(s) {
-    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-  }
-
-  async function onInlineEdit(e) {
-    const input = e.currentTarget || this;
-    const id = input.getAttribute('data-edit');
-    const field = input.getAttribute('data-field');
-    const value = input.value.trim() || null;
-    if (field === 'name' && (!value || value.length === 0)) {
-      alert('Name is required.');
-      return render();
-    }
-    const payload = {}; payload[field] = value;
-    const { error } = await supa.from('catalogue').update(payload).eq('id', id);
-    if (error) alert(error.message);
-  }
-
-  async function onPhotoChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const id = e.target.getAttribute('data-photo');
-    const url = await uploadPhoto(file, id);
-    if (!url) return;
-    const { error } = await supa.from('catalogue').update({ photo_url: url }).eq('id', id);
-    if (error) return alert(error.message);
-    await refresh();
-  }
-
-  el('btnRefresh').onclick = refresh;
-  el('chkAll').addEventListener('change', refresh);
-  inSearch.addEventListener('input', render);
-
-})(); // boot
+})();
 </script>
 </body>
 </html>
