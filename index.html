@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Dental Inventory</title>
 
-  <!-- Inline favicon: stops 404s on GitHub Pages subpath -->
+  <!-- Inline favicon so no 404 on subpath -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
-  <!-- Load Supabase UMD FIRST (no defer!) so window.supabase exists for our inline script -->
+  <!-- Load Supabase UMD BEFORE app code (no defer) -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 
   <style>
-    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee}
+    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee;--danger:#ef4444}
     html,body{margin:0;height:100%;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:var(--text)}
     .wrap{max-width:1100px;margin:0 auto;padding:20px}
     .card{background:linear-gradient(180deg,#0b1220,#0b1220) padding-box,linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,0)) border-box;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
@@ -43,7 +43,7 @@
     .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12);cursor:pointer}
     .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
     .tight{max-width:680px}
-    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
 </head>
 <body>
@@ -62,10 +62,10 @@
       </div>
     </div>
 
-    <!-- OPTIONAL: Google sign-in button -->
+    <!-- Google + Reset -->
     <div class="row" style="margin-top:8px">
       <div>
-        <button id="btnGoogle" class="btn alt" title="Sign in with Google (optional)">Continue with Google</button>
+        <button id="btnGoogle" class="btn alt" title="Sign in with Google">Continue with Google</button>
       </div>
       <div>
         <button id="btnReset" class="btn alt" title="Clear session and reload">Reset Session</button>
@@ -73,7 +73,7 @@
     </div>
 
     <div class="hint" style="margin-top:8px">
-      Magic link avoids OAuth domain hassles on GitHub Pages. Google works too—just enable it in Supabase and we’ll redirect back here.
+      Tip: Magic Link avoids OAuth domain quirks on GitHub Pages. Google works too once URL settings match exactly.
     </div>
   </div>
 
@@ -117,7 +117,7 @@
         <span class="hint">This photo will be uploaded when you save.</span>
       </div>
       <div class="hint tight" style="margin-top:8px">
-        Tip: If the barcode already exists in your org, this updates Unit/Pack/Photo (Name stays unless you enter a new one).
+        If the barcode already exists in your org, this updates Unit/Pack/Photo (Name stays unless you enter a new one).
       </div>
     </div>
 
@@ -162,15 +162,36 @@
 <!-- App script -->
 <script>
 (function boot() {
-  // Guard in case CDN is slow; try again until window.supabase exists
   if (!window.supabase) return setTimeout(boot, 10);
 
   // ====== CONFIG ======
-  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // MUST match Supabase auth URLs
+
+  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co'; // <-- YOUR real project URL
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';               // <-- YOUR real anon key
+
+  // Basic guard to avoid "Invalid URL"
+  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
+    alert('Config error: SUPABASE_URL is missing/invalid'); return;
+  }
+
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
   });
+
+  // ====== Explicitly complete OAuth / Magic-link on return, then clean URL ======
+  (async () => {
+    const href = window.location.href;
+    if (href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=')) {
+      const { error } = await supa.auth.exchangeCodeForSession(href);
+      // Clean the URL (prevents re-exchange on refresh)
+      window.history.replaceState({}, '', REDIRECT_URL);
+      if (error) {
+        console.error('exchangeCodeForSession error', error);
+        alert('Login could not be completed. Please try again.');
+      }
+    }
+  })();
 
   // ====== DOM ======
   const el = id => document.getElementById(id);
@@ -193,9 +214,8 @@
   const inImport = el('inImport');
   const lblImport = el('lblImport');
 
-  let profile = null;     // { id, email, role, org_id }
+  let profile = null;
   let isAdmin = false;
-  let viewAll = false;
   let rows = [];
 
   // ====== AUTH UI ======
@@ -204,18 +224,17 @@
     if (!email) return alert('Enter your email');
     const { error } = await supa.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: window.location.href }
+      options: { emailRedirectTo: REDIRECT_URL }
     });
     if (error) return alert(error.message);
     alert('Check your email for the sign-in link.');
   };
 
-  // Optional Google OAuth
   el('btnGoogle').onclick = async () => {
     const { error } = await supa.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.href,
+        redirectTo: REDIRECT_URL,
         queryParams: { prompt: 'select_account' }
       }
     });
@@ -223,10 +242,9 @@
   };
 
   el('btnReset').onclick = async () => {
-    await supa.auth.signOut(); // Reset only (no separate signout button)
-    localStorage.clear();
-    sessionStorage.clear();
-    location.reload();
+    await supa.auth.signOut();
+    localStorage.clear(); sessionStorage.clear();
+    location.replace(REDIRECT_URL);
   };
 
   inPhoto.addEventListener('change', () => {
@@ -240,7 +258,7 @@
     }
   });
 
-  // ====== SESSION BOOTSTRAP ======
+  // ====== SESSION BRIDGE ======
   supa.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       await loadProfile();
@@ -279,7 +297,8 @@
     roleBadge.classList.remove('hidden');
     orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
 
-    chkAll.disabled = !isAdmin;
+    // Admin UI bits
+    el('chkAll').disabled = !isAdmin;
     btnExport.disabled = !isAdmin;
     lblImport.classList.toggle('hidden', !isAdmin);
   }
@@ -345,7 +364,6 @@
 
   // ====== FETCH & RENDER ======
   async function fetchCatalogue() {
-    // v_catalogue_with_owner respects RLS; admin will see all if policy allows
     return await supa.from('v_catalogue_with_owner')
       .select('*')
       .order('updated_at', { ascending: false })
@@ -387,17 +405,17 @@
       `;
       tblBody.appendChild(tr);
     }
-    // Bind inline editors
+    // Inline editors
     tblBody.querySelectorAll('input[data-edit]').forEach(inp => {
       inp.addEventListener('change', onInlineEdit);
       inp.addEventListener('blur', onInlineEdit);
       inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onInlineEdit.call(inp,e); });
     });
-    // Bind photo changers
+    // Photo change
     tblBody.querySelectorAll('input[data-photo]').forEach(inp => {
       inp.addEventListener('change', onPhotoChange);
     });
-    // Bind deletes (admin)
+    // Deletes
     tblBody.querySelectorAll('button[data-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm('Delete this item?')) return;
@@ -413,7 +431,6 @@
     const val = (row[field] ?? '');
     return `<input data-edit="${row.id}" data-field="${field}" value="${escapeHtml(val)}" />`;
   }
-
   function escapeHtml(s) {
     return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
   }
@@ -443,94 +460,11 @@
     await refresh();
   }
 
-  inSearch.addEventListener('input', render);
   el('btnRefresh').onclick = refresh;
+  el('chkAll').addEventListener('change', refresh);
+  inSearch.addEventListener('input', render);
 
-  chkAll.addEventListener('change', async () => {
-    // View-all controlled by RLS and the view; we keep the UI toggle for admins.
-    if (!isAdmin) return;
-    // No client filter here; server-side already returns what admin can see.
-    await refresh();
-  });
-
-  // Export CSV (admin only)
-  btnExport.addEventListener('click', () => {
-    if (!isAdmin) return alert('Admins only');
-    const csv = toCSV(rows, ['barcode','name','unit','pack_size','photo_url','owner_email','updated_at']);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `catalogue_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-  });
-
-  function toCSV(arr, cols) {
-    const header = cols.join(',');
-    const lines = arr.map(r => cols.map(c => csvCell(r[c])).join(','));
-    return [header, ...lines].join('\n');
-  }
-  function csvCell(v) {
-    if (v == null) return '';
-    const s = String(v).replaceAll('"','""');
-    if (/[",\n]/.test(s)) return `"${s}"`;
-    return s;
-  }
-
-  // Import CSV (admin only): expects columns: barcode,name,unit,pack_size,photo_url
-  inImport.addEventListener('change', async () => {
-    const isAdminNow = isAdmin; // guard in case profile changes mid-session
-    if (!isAdminNow) return alert('Admins only');
-    const file = inImport.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const lines = text.split(/\r?\n/).filter(Boolean);
-    const header = lines.shift().split(',');
-    const idx = (k)=> header.findIndex(h => h.trim().toLowerCase()===k);
-    const ib = idx('barcode'), iname = idx('name'), iunit = idx('unit'), ipack = idx('pack_size'), iphoto = idx('photo_url');
-    if (ib<0 || iname<0) { alert('CSV needs at least barcode & name columns'); return; }
-
-    const payloads = lines.map(line => {
-      const cells = parseCSVLine(line, header.length);
-      return {
-        barcode: cells[ib]?.trim(),
-        name: (cells[iname]||'').trim(),
-        unit: (cells[iunit]||'').trim() || null,
-        pack_size: (cells[ipack]||'').trim() || null,
-        photo_url: (cells[iphoto]||'').trim() || null
-      };
-    }).filter(p => p.barcode && p.name);
-
-    for (const p of payloads) {
-      const { error } = await supa.from('catalogue')
-        .upsert(p, { onConflict: 'org_id,barcode' });
-      if (error) console.warn('import row error', error);
-    }
-    alert('Import done');
-    await refresh();
-    inImport.value = '';
-  });
-
-  function parseCSVLine(line, ncols) {
-    const out = []; let cur = ''; let inQ=false;
-    for (let i=0;i<line.length;i++){
-      const ch=line[i];
-      if (inQ){
-        if (ch === '"' && line[i+1] === '"'){cur+='"'; i++;}
-        else if (ch === '"'){inQ=false;}
-        else cur+=ch;
-      } else {
-        if (ch === ','){out.push(cur); cur='';}
-        else if (ch === '"'){inQ=true;}
-        else cur+=ch;
-      }
-    }
-    out.push(cur);
-    while(out.length<ncols) out.push('');
-    return out;
-  }
 })(); // boot
 </script>
 </body>
 </html>
-
-
