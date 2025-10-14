@@ -1,396 +1,522 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <!-- Stop cached OAuth returns -->
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Dental Inventory (SaaS)</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2316a34a'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-size='28' fill='white' font-family='Arial'%3EDD%3C/text%3E%3C/svg%3E">
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dental Inventory</title>
   <style>
-    :root{--bg:#0b1220;--card:#0f172a;--line:#1f2937;--text:#e5e7eb;--muted:#94a3b8}
-    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Inter,Arial}
-    header{position:sticky;top:0;background:rgba(11,18,32,.8);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);z-index:5}
-    .wrap{max-width:1100px;margin:0 auto;padding:12px 16px}
-    h1{font-size:18px;margin:4px 0}.muted{color:var(--muted)}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:12px}
-    input,select,button{font:inherit}
-    input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b1220;color:#e5e7eb}
-    button{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
-    button.primary{background:linear-gradient(180deg,#16a34a,#15803d);border-color:#166534}
-    button.warn{background:linear-gradient(180deg,#f59e0b,#d97706);border-color:#b45309}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left}
-    th{color:#cbd5e1}
-    .tabs{display:flex;gap:8px;flex-wrap:wrap}
-    .tabs button{border-radius:999px}
-    .tabs .active{background:#1f2937}
-    .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line)}
-    .camera{aspect-ratio:16/10;background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
-    @media print { header,.tabs,#view-scan,#view-catalog,#view-trans{display:none} #view-reorder{display:block} body{background:#fff;color:#000} table,th,td{border:1px solid #000} }
+    :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22d3ee;--danger:#ef4444;--ok:#22c55e}
+    html,body{margin:0;height:100%;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1220;color:var(--text)}
+    .wrap{max-width:1100px;margin:0 auto;padding:20px}
+    .card{background:linear-gradient(180deg,#0b1220,#0b1220) padding-box,linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,0)) border-box;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
+    h1{font-weight:700;letter-spacing:.3px}
+    label{display:block;margin:.5rem 0 .25rem;color:var(--muted);font-size:.9rem}
+    input,select,button,textarea{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:var(--text);outline:none}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .btn{cursor:pointer;border:none}
+    .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700}
+    .btn.reset{background:#1f2937}
+    .btn.danger{background:#2a0f12;border:1px solid rgba(239,68,68,.4);color:#fecaca}
+    .pill{display:inline-flex;gap:8px;align-items:center;padding:.25rem .6rem;border-radius:999px;background:#102037;border:1px solid rgba(255,255,255,.08);color:#a5b4fc}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th,td{padding:.65rem .6rem;text-align:left}
+    thead th{font-size:.85rem;color:var(--muted);font-weight:600}
+    tbody tr{background:#0c1426;border:1px solid rgba(255,255,255,.06)}
+    tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+    tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+    .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .right{margin-left:auto}
+    .hint{color:var(--muted);font-size:.85rem}
+    .hidden{display:none !important}
+    .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.75rem}
+    .owner{color:#93c5fd}
+    .srch{display:flex;gap:10px;align-items:center}
+    .file{padding:.5rem;background:#0d1628;border-radius:10px;border:1px dashed rgba(255,255,255,.12)}
+    .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
+    .tight{max-width:680px}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script defer src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 </head>
 <body>
-<header>
-  <div class="wrap" style="display:flex;gap:8px;align-items:center">
-    <div>
-      <h1>Dental Inventory</h1>
-      <div class="muted" id="status">Not signed in</div>
-    </div>
-    <div style="margin-left:auto; display:flex; gap:8px">
-      <button id="btnSignOut" class="warn" style="display:none">Sign out</button>
-      <button id="btnReset" class="warn" title="Clears cached session & reloads">Reset session</button>
-    </div>
-  </div>
-</header>
-
 <div class="wrap">
+  <h1>Dental Inventory <span id="roleBadge" class="pill hidden"></span></h1>
+
   <!-- Auth -->
-  <div class="card" id="authCard">
-    <h3>Sign in / Sign up</h3>
+  <div id="authCard" class="card">
     <div class="row">
-      <div style="flex:1 1 260px">
-        <label for="email">Email</label>
-        <input id="email" type="email" placeholder="you@clinic.com" autocomplete="username" />
+      <div>
+        <label>Email for magic link</label>
+        <input id="email" type="email" placeholder="you@clinic.com"/>
       </div>
-      <div style="flex:1 1 200px">
-        <label for="password">Password</label>
-        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <div style="align-self:end">
+        <button id="btnMagic" class="btn primary">Send Sign-In Link</button>
       </div>
     </div>
-    <div style="display:flex; gap:8px; margin-top:8px">
-      <button class="primary" id="btnSignIn">Sign in</button>
-      <button id="btnSignUp">Create account</button>
-      <button id="btnGoogle">Sign in with Google</button>
-      <span class="muted" style="margin-left:auto">Each account is isolated (RLS)</span>
+    <div class="flex" style="margin-top:8px">
+      <button id="btnReset" class="btn reset">Reset Session</button>
+      <span class="hint">We use passwordless sign-in. Check your email and open the link on this device.</span>
     </div>
   </div>
 
-  <!-- Tabs -->
-  <div class="tabs" id="tabs" style="display:none"></div>
-
-  <!-- Scan -->
-  <div id="view-scan" class="card" style="display:none">
-    <h3>Scan / Log transaction</h3>
-    <div class="row">
-      <div style="flex:2 1 320px">
-        <div class="row">
-          <div style="flex:2 1 240px">
-            <label for="scan-barcode">Barcode</label>
-            <input id="scan-barcode" placeholder="Focus here and scan…" autocomplete="off" />
-          </div>
-          <div style="flex:1 1 120px">
-            <label for="scan-qty">Qty</label>
-            <input id="scan-qty" type="number" value="1" min="1" autocomplete="off" />
-          </div>
-          <div style="flex:1 1 140px">
-            <label for="scan-mode">Mode</label>
-            <select id="scan-mode" autocomplete="off">
-              <option value="IN">Receive (IN)</option>
-              <option value="OUT">Use (OUT)</option>
-            </select>
-          </div>
-          <div style="flex:1 1 160px" id="price-wrap">
-            <label for="scan-price">Unit Price (IN)</label>
-            <input id="scan-price" type="number" step="0.01" placeholder="e.g. 4.50" autocomplete="off" />
-          </div>
-          <div style="flex:1 1 140px">
-            <label for="scan-staff">Staff</label>
-            <input id="scan-staff" placeholder="AB" maxlength="4" autocomplete="off" />
-          </div>
+  <!-- App -->
+  <div id="app" class="hidden">
+    <!-- New item / scan -->
+    <div class="card">
+      <div class="flex">
+        <div class="pill">Add / Scan Item</div>
+        <span class="right hint">New items require a <strong>Name</strong> before they’re saved.</span>
+      </div>
+      <div class="row3" style="margin-top:12px">
+        <div>
+          <label>Barcode</label>
+          <input id="inBarcode" class="mono" placeholder="Scan or type…"/>
         </div>
-        <div style="display:flex; gap:8px; margin-top:8px; align-items:center">
-          <button class="primary" id="btnAddTx">Add Transaction</button>
-          <button id="btnCamera">Use Camera (beta)</button>
-          <button id="btnStopCam" class="warn" style="display:none">Stop Camera</button>
-          <label class="muted" style="display:flex;gap:6px;align-items:center;margin-left:8px">
-            <input type="checkbox" id="auto-add" checked> Auto-add when scanned
+        <div>
+          <label>Item Name <span class="hint">(required for new items)</span></label>
+          <input id="inName" placeholder="e.g., GIC Fuji IX Capsule A2"/>
+        </div>
+        <div>
+          <label>Unit</label>
+          <input id="inUnit" placeholder="box / pack / ea"/>
+        </div>
+      </div>
+      <div class="row3">
+        <div>
+          <label>Pack Size</label>
+          <input id="inPack" placeholder="e.g., x10 / 50pcs / 3g"/>
+        </div>
+        <div>
+          <label>Photo (capture or choose)</label>
+          <input id="inPhoto" type="file" accept="image/*" capture="environment"/>
+        </div>
+        <div style="align-self:end">
+          <button id="btnAdd" class="btn primary">Save / Upsert</button>
+        </div>
+      </div>
+      <div id="photoPreviewWrap" class="flex hidden" style="margin-top:8px">
+        <img id="photoPreview" class="preview" alt="preview"/>
+        <span class="hint">This photo will be uploaded when you save.</span>
+      </div>
+      <div class="hint tight" style="margin-top:8px">
+        Tip: If the barcode already exists in your org, this will update Unit/Pack/Photo (Name stays unless you provided a new one).
+      </div>
+    </div>
+
+    <!-- Catalogue -->
+    <div class="card">
+      <div class="flex">
+        <div class="pill">Catalogue</div>
+        <div class="srch right">
+          <input id="inSearch" placeholder="Search name or barcode…" class="mono"/>
+          <button id="btnRefresh" class="btn">Refresh</button>
+          <button id="btnExport" class="btn" title="CSV export (admin only)">Export CSV</button>
+          <label class="file hidden" id="lblImport">
+            <input id="inImport" type="file" accept=".csv" class="hidden"/>
+            <span>Import CSV (admin)</span>
           </label>
         </div>
-        <div class="camera" id="camWrap" style="display:none; margin-top:8px">
-          <video id="video" autoplay muted playsinline style="width:100%;height:100%;object-fit:cover"></video>
-        </div>
       </div>
-      <div style="flex:1 1 240px">
-        <div class="muted">Matched Item</div>
-        <div id="match">—</div>
+      <div class="hint" style="margin:6px 0 10px">
+        Admins can toggle <label style="display:inline;margin:0 6px"><input id="chkAll" type="checkbox"/> View all users</label>
+        <span id="orgHint" class="badge"></span>
       </div>
-    </div>
-  </div>
-
-  <!-- Catalog -->
-  <div id="view-catalog" class="card" style="display:none">
-    <div style="display:flex; align-items:center; gap:8px">
-      <h3>Catalog</h3><span class="muted" style="margin-left:auto">On-hand comes from your transactions</span>
-    </div>
-    <div class="row">
-      <div style="flex:2 1 260px"><label for="cat-barcode">Barcode</label><input id="cat-barcode" placeholder="9300632083503" autocomplete="off" /></div>
-      <div style="flex:3 1 260px"><label for="cat-name">Item Name</label><input id="cat-name" placeholder="Colgate Optic White" autocomplete="off" /></div>
-      <div style="flex:1 1 120px"><label for="cat-pack">Pack</label><input id="cat-pack" placeholder="1" autocomplete="off" /></div>
-      <div style="flex:1 1 120px"><label for="cat-min">Min Stock</label><input id="cat-min" type="number" placeholder="12" autocomplete="off" /></div>
-      <div style="flex:2 1 200px"><label for="cat-supplier">Supplier</label><input id="cat-supplier" placeholder="Supplier" autocomplete="organization" /></div>
-    </div>
-    <div style="display:flex; gap:8px; margin-top:8px">
-      <button class="primary" id="btnUpsertItem">Add / Update Item</button>
-      <button id="btnClearItem">Clear</button>
-    </div>
-    <div style="overflow:auto;max-height:360px;margin-top:8px">
-      <table id="tbl-inv"><thead><tr><th>Barcode</th><th>Item</th><th>Pack</th><th>On-hand</th><th>Min</th><th>Supplier</th><th>Last Price</th><th></th></tr></thead><tbody></tbody></table>
-    </div>
-  </div>
-
-  <!-- Reorder -->
-  <div id="view-reorder" class="card" style="display:none">
-    <div style="display:flex; gap:8px; align-items:center">
-      <h3>Reorder</h3>
-      <div style="margin-left:auto; display:flex; gap:8px">
-        <button id="btnEmail">Email Reorder</button>
-        <button id="btnCSV">Download CSV</button>
-        <button class="right" id="btnPrint">Print Reorder Sheet</button>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Barcode</th>
+            <th>Name</th>
+            <th>Unit</th>
+            <th>Pack</th>
+            <th class="owner">Owner</th>
+            <th>Actions</th>
+          </tr>
+          </thead>
+          <tbody id="tblBody"></tbody>
+        </table>
       </div>
-    </div>
-    <div style="overflow:auto;max-height:320px">
-      <table id="tbl-reo"><thead><tr><th>Barcode</th><th>Item</th><th>On-hand</th><th>Min</th><th>Supplier</th></tr></thead><tbody></tbody></table>
-    </div>
-  </div>
-
-  <!-- Transactions -->
-  <div id="view-trans" class="card" style="display:none">
-    <div style="display:flex; gap:8px; align-items:center"><h3>Transactions</h3><button class="right" id="btnReload">Reload</button></div>
-    <div style="overflow:auto;max-height:420px">
-      <table id="tbl-tx"><thead><tr><th>Date/Time</th><th>Action</th><th>Barcode</th><th>Item</th><th>Qty</th><th>Unit Price</th><th>Staff</th></tr></thead><tbody></tbody></table>
     </div>
   </div>
 </div>
 
 <script>
-/*** CONFIG — put your real values here ***/
-const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-/**************/
-  
-/*** VERSIONED STORAGE KEY — bump to force new session after deploy ***/
-const APP_VER = '1.0.5';
-const STORAGE_KEY = 'di_' + APP_VER.replace(/\./g,'_'); // e.g. di_1_0_5
+(async () => {
+  // -------- Supabase init --------
+  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+  const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce'
+    }
+  });
 
-/*** Create client FIRST, with a versioned storageKey ***/
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: {
-    storageKey: STORAGE_KEY,          // <- prevents old sessions from different versions
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+  // Elements
+  const el = id => document.getElementById(id);
+  const authCard = el('authCard');
+  const app = el('app');
+  const roleBadge = el('roleBadge');
+  const orgHint = el('orgHint');
+
+  const inBarcode = el('inBarcode');
+  const inName = el('inName');
+  const inUnit = el('inUnit');
+  const inPack = el('inPack');
+  const inPhoto = el('inPhoto');
+  const photoPreviewWrap = el('photoPreviewWrap');
+  const photoPreview = el('photoPreview');
+  const inSearch = el('inSearch');
+  const tblBody = el('tblBody');
+  const chkAll = el('chkAll');
+  const btnExport = el('btnExport');
+  const inImport = el('inImport');
+  const lblImport = el('lblImport');
+
+  let profile = null;     // { id, email, role, org_id }
+  let isAdmin = false;
+  let viewAll = false;
+  let currentOrg = null;
+  let rows = [];
+
+  // --- Auth UI ---
+  el('btnMagic').onclick = async () => {
+    const email = el('email').value.trim();
+    if (!email) return alert('Enter your email');
+    const { error } = await supa.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href }});
+    if (error) return alert(error.message);
+    alert('Check your email for the sign-in link.');
+  };
+  el('btnReset').onclick = async () => {
+    await supa.auth.signOut(); // keep only reset, signout removed elsewhere
+    localStorage.clear();
+    sessionStorage.clear();
+    location.reload();
+  };
+
+  inPhoto.addEventListener('change', () => {
+    const f = inPhoto.files?.[0];
+    if (f) {
+      const url = URL.createObjectURL(f);
+      photoPreview.src = url;
+      photoPreviewWrap.classList.remove('hidden');
+    } else {
+      photoPreviewWrap.classList.add('hidden');
+    }
+  });
+
+  // --- Session bootstrap ---
+  supa.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      await loadProfile();
+      await refresh();
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
+    } else {
+      authCard.classList.remove('hidden');
+      app.classList.add('hidden');
+    }
+  });
+
+  // If already signed in
+  const { data: { session } } = await supa.auth.getSession();
+  if (session?.user) {
+    await loadProfile();
+    await refresh();
+    authCard.classList.add('hidden');
+    app.classList.remove('hidden');
   }
-});
 
-let currentUser = null;
-let latestReorder = [];
-const $ = (s)=>document.querySelector(s);
-
-/*** UI helpers ***/
-function setTabsVisible(v){ const t=$('#tabs'); if(t) t.style.display = v?'flex':'none'; }
-function showView(id){ ['view-scan','view-catalog','view-reorder','view-trans'].forEach(x=>{ const el=document.getElementById(x); if(el) el.style.display = (x===id)?'block':'none';}); }
-function setSignedInUI(signed){
-  const auth=document.getElementById('authCard'); if(auth) auth.style.display = signed?'none':'block';
-  setTabsVisible(signed);
-  const s=document.getElementById('status'); if(s) s.textContent = signed? ('Signed in: '+(currentUser?.email||'')) : 'Not signed in';
-  const out=document.getElementById('btnSignOut'); if(out) out.style.display = signed?'inline-block':'none';
-  if(signed){ const b=document.getElementById('scan-barcode'); if(b) b.focus(); }
-}
-
-/*** Tabs ***/
-(function buildTabs(){
-  const tabs=[{id:'view-scan',label:'Scan'},{id:'view-catalog',label:'Catalog'},{id:'view-reorder',label:'Reorder'},{id:'view-trans',label:'Transactions'}];
-  const c=$('#tabs'); if(!c) return; c.innerHTML='';
-  tabs.forEach((t,i)=>{ const b=document.createElement('button'); b.textContent=t.label; b.className=i?'' :'active'; b.addEventListener('click',()=>{ c.querySelectorAll('button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showView(t.id); }); c.appendChild(b); });
-})();
-
-/*** Auth functions ***/
-async function signUp(){ const {error} = await sb.auth.signUp({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); else alert('Check your inbox to confirm, then sign in.'); }
-async function signIn(){ const {error} = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#password').value}); if(error) alert(error.message); }
-async function signOut(){
-  try { await sb.auth.signOut(); } catch(e) {}
-  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
-  location.replace(location.origin + location.pathname + '?signed_out=' + Date.now());
-}
-
-// Google sign-in with cache-busted redirect
-document.getElementById('btnGoogle')?.addEventListener('click', async ()=>{
-  const redirect = location.origin + location.pathname + '?auth=' + Date.now();
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: redirect } });
-  if (error) alert(error.message);
-});
-document.getElementById('btnReset')?.addEventListener('click', ()=>{
-  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
-  location.replace(location.origin + location.pathname + '?reset=' + Date.now());
-});
-document.getElementById('btnSignOut')?.addEventListener('click', signOut);
-
-/*** Auth listeners & initial session ***/
-sb.auth.onAuthStateChange(async (_evt, sess)=>{ currentUser = sess?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }});
-(async()=>{ const { data:{ session } } = await sb.auth.getSession(); currentUser = session?.user || null; setSignedInUI(!!currentUser); if(currentUser){ await loadAll(); }})();
-
-/*** Data helpers ***/
-async function listItemsMap(){ const {data} = await sb.from('items').select('barcode,item_name,pack_size,supplier'); const m={}; (data||[]).forEach(x=>m[x.barcode]=x); return m; }
-async function onHandMap(){ const {data,error}=await sb.from('transactions').select('action,barcode,quantity'); if(error){ alert(error.message); return {};} const map={}; for(const r of data){ map[r.barcode]=(map[r.barcode]||0)+(r.action==='IN'?+r.quantity:-r.quantity);} return map; }
-
-/*** Loaders ***/
-async function loadItems(){
-  const {data,error}=await sb.from('items').select('*').order('item_name',{ascending:true});
-  if(error){ alert(error.message); return; }
-  const tbody=$('#tbl-inv tbody'); if(!tbody) return; tbody.innerHTML='';
-  const oh=await onHandMap();
-  for(const it of data){
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${it.pack_size||''}</td><td>${oh[it.barcode]||0}</td><td>${it.min_stock||0}</td><td>${it.supplier||''}</td><td>${(it.last_purchase_price!=null?('$'+Number(it.last_purchase_price).toFixed(2)):'')}</td><td><button data-bc="${it.barcode}">Delete</button></td>`;
-    tbody.appendChild(tr);
+  // --- Load profile / role ---
+  async function loadProfile() {
+    const { data: { user } } = await supa.auth.getUser();
+    if (!user) return;
+    const { data, error } = await supa
+      .from('profiles')
+      .select('id,email,role,org_id')
+      .eq('id', user.id)
+      .single();
+    if (error) {
+      console.warn('profile load error', error);
+      return;
+    }
+    profile = data;
+    isAdmin = profile.role === 'admin';
+    currentOrg = profile.org_id;
+    roleBadge.textContent = isAdmin ? 'Admin' : 'User';
+    roleBadge.classList.remove('hidden');
+    orgHint.textContent = `Org: ${currentOrg?.slice(0,8)}…`;
+    // Admin UI bits
+    chkAll.disabled = !isAdmin;
+    btnExport.disabled = !isAdmin;
+    lblImport.classList.toggle('hidden', !isAdmin);
   }
-  tbody.querySelectorAll('button').forEach(btn=>btn.addEventListener('click', async()=>{ if(confirm('Delete item '+btn.dataset.bc+'?')){ await sb.from('items').delete().eq('user_id', currentUser.id).eq('barcode', btn.dataset.bc); await loadAll(); }}));
-  await buildReorder(oh, data);
-  const bc=$('#scan-barcode')?.value.trim(); const m=data.find(x=>x.barcode===bc);
-  const match=$('#match'); if(match) match.innerHTML = m? `<b>${m.item_name||'—'}</b><br><span class="muted">Pack: ${m.pack_size||'-'} • Supplier: ${m.supplier||'-'}</span><br>On-hand: <b>${(oh[bc]||0)}</b>` : '—';
-}
-async function loadTx(){
-  const {data,error}=await sb.from('transactions').select('*').order('ts',{ascending:false}).limit(500);
-  if(error){ alert(error.message); return; }
-  const tbody=$('#tbl-tx tbody'); if(!tbody) return; tbody.innerHTML='';
-  const items=await listItemsMap();
-  for(const t of data){
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${new Date(t.ts).toLocaleString()}</td><td><span class="tag">${t.action}</span></td><td>${t.barcode}</td><td>${items[t.barcode]?.item_name||''}</td><td>${t.quantity}</td><td>${t.unit_price!=null?('$'+Number(t.unit_price).toFixed(2)) : ''}</td><td>${t.staff||''}</td>`;
-    tbody.appendChild(tr);
+
+  // --- Photo uploader ---
+  async function uploadPhoto(file, itemId) {
+    if (!file) return null;
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${profile.id}/${itemId}_${Date.now()}.${ext}`;
+    const { error } = await supa.storage.from('product_photos').upload(path, file, { upsert: false });
+    if (error) { alert('Photo upload failed: ' + error.message); return null; }
+    const { data } = supa.storage.from('product_photos').getPublicUrl(path);
+    return data?.publicUrl || null;
   }
-}
-async function buildReorder(oh, items){
-  latestReorder = [];
-  const tbody=$('#tbl-reo tbody'); if(!tbody) return; tbody.innerHTML='';
-  for(const it of items){
-    const cur = oh[it.barcode]||0; const min = Number(it.min_stock||0);
-    if(min>0 && cur<min){
-      latestReorder.push({ barcode: it.barcode, item: it.item_name||'', onhand: cur, min, supplier: it.supplier||'' });
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${it.barcode}</td><td>${it.item_name||''}</td><td>${cur}</td><td>${min}</td><td>${it.supplier||''}</td>`;
-      tbody.appendChild(tr);
+
+  // --- Add / Upsert item ---
+  el('btnAdd').onclick = async () => {
+    const barcode = inBarcode.value.trim();
+    const name = inName.value.trim();
+    const unit = inUnit.value.trim() || null;
+    const pack = inPack.value.trim() || null;
+    if (!barcode) return alert('Barcode is required');
+
+    // Check if exists
+    const { data: existing, error: exErr } = await supa
+      .from('catalogue')
+      .select('id,name')
+      .eq('barcode', barcode)
+      .limit(1)
+      .maybeSingle();
+
+    if (exErr) return alert(exErr.message);
+
+    // Enforce name for NEW items
+    if (!existing && !name) {
+      return alert('Name is required for new items before adding to catalogue.');
+    }
+
+    let photo_url = null;
+    // Create a temp id for path if inserting new
+    const tempId = existing?.id || crypto.randomUUID();
+    if (inPhoto.files?.[0]) {
+      photo_url = await uploadPhoto(inPhoto.files[0], tempId);
+    }
+
+    const payload = {
+      barcode,
+      // Only send name if provided (so we don't overwrite accidentally on updates)
+      ...(name ? { name } : {}),
+      unit: unit,
+      pack_size: pack,
+      ...(photo_url ? { photo_url } : {})
+    };
+
+    // If exists, update; else insert
+    let resp;
+    if (existing) {
+      resp = await supa.from('catalogue').update(payload).eq('id', existing.id).select().single();
+    } else {
+      // org_id and user_id set via trigger; WITH CHECK gate will enforce same-org
+      resp = await supa.from('catalogue').insert(payload).select().single();
+    }
+
+    if (resp.error) return alert(resp.error.message);
+    clearInputs();
+    await refresh();
+  };
+
+  function clearInputs() {
+    inBarcode.value = '';
+    inName.value = '';
+    inUnit.value = '';
+    inPack.value = '';
+    inPhoto.value = '';
+    photoPreviewWrap.classList.add('hidden');
+  }
+
+  // --- Fetch catalogue (admin all vs org) ---
+  async function fetchCatalogue() {
+    const base = supa.from('v_catalogue_with_owner').select('*').order('updated_at', { ascending: false });
+    if (isAdmin && viewAll) {
+      return await base.limit(1000);
+    } else {
+      // RLS will already restrict to org; still call base
+      return await base.limit(1000);
     }
   }
-}
-async function loadAll(){ await Promise.all([loadItems(), loadTx()]); }
 
-/*** Writes ***/
-async function addTx(){
-  try{
-    if(!currentUser){ alert('Not signed in'); return; }
-    const bc=$('#scan-barcode').value.trim(); if(!bc){ alert('Scan a barcode'); return; }
-    const qty=Number($('#scan-qty').value||1); if(!(qty>0)){ alert('Qty must be > 0'); return; }
-    const action=$('#scan-mode').value;
-    const priceEl=$('#scan-price'); const priceVal=priceEl?Number(priceEl.value):NaN;
-    const staff = ($('#scan-staff').value||'').trim().toUpperCase();
+  async function refresh() {
+    const { data, error } = await fetchCatalogue();
+    if (error) { alert(error.message); return; }
+    rows = data || [];
+    render();
+  }
 
-    // ensure item exists (ignore duplicate error)
-    const insItem=await sb.from('items').insert({ user_id: currentUser.id, barcode: bc });
-    if (insItem.error){
-      const msg=String(insItem.error.message||'');
-      if (insItem.error.code!=='23505' && !/duplicate key|unique/i.test(msg)){
-        alert('Items insert error: '+insItem.error.message); return;
+  function render() {
+    const q = inSearch.value.trim().toLowerCase();
+    const filtered = !q ? rows : rows.filter(r =>
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.barcode||'').toLowerCase().includes(q)
+    );
+    tblBody.innerHTML = '';
+    for (const r of filtered) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.photo_url ? `<img src="${r.photo_url}" style="max-height:42px;border-radius:6px;border:1px solid rgba(255,255,255,.1)"/>` : ''}</td>
+        <td class="mono">${r.barcode||''}</td>
+        <td>${editable('name', r)}</td>
+        <td>${editable('unit', r)}</td>
+        <td>${editable('pack_size', r)}</td>
+        <td class="owner">${r.owner_email ? r.owner_email : ''}</td>
+        <td>
+          <div class="flex">
+            <label class="file" style="cursor:pointer">
+              <input type="file" accept="image/*" class="hidden" data-photo="${r.id}"/>
+              <span>Change photo</span>
+            </label>
+            ${isAdmin ? `<button class="btn danger" data-del="${r.id}">Delete</button>` : ''}
+          </div>
+        </td>
+      `;
+      tblBody.appendChild(tr);
+    }
+    // bind inline editors
+    tblBody.querySelectorAll('input[data-edit]').forEach(inp => {
+      inp.addEventListener('change', onInlineEdit);
+      inp.addEventListener('blur', onInlineEdit);
+      inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onInlineEdit.call(inp,e); });
+    });
+    // bind photo changers
+    tblBody.querySelectorAll('input[data-photo]').forEach(inp => {
+      inp.addEventListener('change', onPhotoChange);
+    });
+    // bind deletes
+    tblBody.querySelectorAll('button[data-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Delete this item?')) return;
+        const id = btn.getAttribute('data-del');
+        const { error } = await supa.from('catalogue').delete().eq('id', id);
+        if (error) return alert(error.message);
+        await refresh();
+      });
+    });
+  }
+
+  function editable(field, row) {
+    const val = (row[field] ?? '');
+    return `<input data-edit="${row.id}" data-field="${field}" value="${escapeHtml(val)}" />`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  }
+
+  async function onInlineEdit(e) {
+    const input = e.currentTarget || this;
+    const id = input.getAttribute('data-edit');
+    const field = input.getAttribute('data-field');
+    const value = input.value.trim() || null;
+    // Prevent blanking the required name
+    if (field === 'name' && (!value || value.length === 0)) {
+      alert('Name is required.');
+      return render();
+    }
+    const payload = {}; payload[field] = value;
+    const { error } = await supa.from('catalogue').update(payload).eq('id', id);
+    if (error) alert(error.message);
+  }
+
+  async function onPhotoChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const id = e.target.getAttribute('data-photo');
+    const url = await uploadPhoto(file, id);
+    if (!url) return;
+    const { error } = await supa.from('catalogue').update({ photo_url: url }).eq('id', id);
+    if (error) return alert(error.message);
+    await refresh();
+  }
+
+  inSearch.addEventListener('input', render);
+  el('btnRefresh').onclick = refresh;
+
+  // Admin: view all toggle
+  chkAll.addEventListener('change', async () => {
+    if (!isAdmin) return;
+    viewAll = chkAll.checked;
+    await refresh();
+  });
+
+  // Export CSV (admin only)
+  btnExport.addEventListener('click', () => {
+    if (!isAdmin) return alert('Admins only');
+    const csv = toCSV(rows, ['barcode','name','unit','pack_size','photo_url','owner_email','updated_at']);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `catalogue_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  });
+
+  function toCSV(arr, cols) {
+    const header = cols.join(',');
+    const lines = arr.map(r => cols.map(c => csvCell(r[c])).join(','));
+    return [header, ...lines].join('\n');
+  }
+  function csvCell(v) {
+    if (v == null) return '';
+    const s = String(v).replaceAll('"','""');
+    if (/[",\n]/.test(s)) return `"${s}"`;
+    return s;
+  }
+
+  // Import CSV (admin only): expects columns: barcode,name,unit,pack_size,photo_url
+  inImport.addEventListener('change', async () => {
+    if (!isAdmin) return alert('Admins only');
+    const file = inImport.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter(Boolean);
+    const header = lines.shift().split(',');
+    const idx = (k)=> header.findIndex(h => h.trim().toLowerCase()===k);
+    const ib = idx('barcode'), iname = idx('name'), iunit = idx('unit'), ipack = idx('pack_size'), iphoto = idx('photo_url');
+    if (ib<0 || iname<0) { alert('CSV needs at least barcode & name columns'); return; }
+    const payloads = lines.map(line => {
+      const cells = parseCSVLine(line, header.length);
+      return {
+        barcode: cells[ib]?.trim(),
+        name: (cells[iname]||'').trim(),
+        unit: (cells[iunit]||'').trim() || null,
+        pack_size: (cells[ipack]||'').trim() || null,
+        photo_url: (cells[iphoto]||'').trim() || null
+      };
+    }).filter(p => p.barcode && p.name);
+    // Upsert by (org, barcode)
+    for (const p of payloads) {
+      const { error } = await supa.from('catalogue')
+        .upsert(p, { onConflict: 'org_id,barcode' });
+      if (error) { console.warn('import row error', error); }
+    }
+    alert('Import done');
+    await refresh();
+    inImport.value = '';
+  });
+
+  function parseCSVLine(line, ncols) {
+    const out = []; let cur = ''; let inQ=false;
+    for (let i=0;i<line.length;i++){
+      const ch=line[i];
+      if (inQ){
+        if (ch === '"' && line[i+1] === '"'){cur+='"'; i++;}
+        else if (ch === '"'){inQ=false;}
+        else cur+=ch;
+      } else {
+        if (ch === ','){out.push(cur); cur='';}
+        else if (ch === '"'){inQ=true;}
+        else cur+=ch;
       }
     }
-
-    const tx={ user_id: currentUser.id, action, barcode: bc, quantity: qty, staff };
-    if(action==='IN' && !isNaN(priceVal) && priceVal>0) tx.unit_price=priceVal;
-
-    const insTx=await sb.from('transactions').insert(tx);
-    if (insTx.error){ alert('Transaction error: '+insTx.error.message); return; }
-
-    if(action==='IN' && tx.unit_price){
-      await sb.from('items').update({ last_purchase_price: tx.unit_price }).eq('user_id', currentUser.id).eq('barcode', bc);
-    }
-
-    $('#scan-barcode').value=''; $('#scan-qty').value=1; if(priceEl) priceEl.value='';
-    await loadAll();
-    alert('Transaction added ✔️');
-  }catch(e){ alert('Unexpected: '+(e?.message||e)); }
-}
-async function upsertItem(){
-  if(!currentUser){ alert('Not signed in'); return; }
-  const row={ user_id: currentUser.id, barcode: $('#cat-barcode').value.trim(), item_name: $('#cat-name').value.trim(), pack_size: $('#cat-pack').value.trim(), min_stock: Number($('#cat-min').value||0), supplier: $('#cat-supplier').value.trim() };
-  if(!row.barcode) return alert('Barcode required');
-
-  const ins=await sb.from('items').insert(row);
-  if (ins.error){
-    const msg=String(ins.error.message||'');
-    if (ins.error.code==='23505' || /duplicate key|unique/i.test(msg)){
-      const upd=await sb.from('items').update({ item_name: row.item_name, pack_size: row.pack_size, min_stock: row.min_stock, supplier: row.supplier }).eq('user_id', row.user_id).eq('barcode', row.barcode);
-      if (upd.error){ alert('Update error: '+upd.error.message); return; }
-    } else { alert('Insert error: '+ins.error.message); return; }
+    out.push(cur);
+    while(out.length<ncols) out.push('');
+    return out;
   }
-  await loadItems();
-  $('#cat-name').value=''; $('#cat-pack').value=''; $('#cat-min').value=''; $('#cat-supplier').value='';
-  alert('Saved to Catalog ✔️');
-}
 
-/*** Email & CSV ***/
-function emailReorder(){
-  if(!latestReorder.length){ alert('Nothing to reorder'); return; }
-  const clinic = currentUser?.email || 'Clinic';
-  const subject = encodeURIComponent(`${clinic} – Reorder list`);
-  const lines = ['Barcode, Item, On-hand, Min, Supplier']
-    .concat(latestReorder.map(r => `${r.barcode}, ${r.item}, ${r.onhand}, ${r.min}, ${r.supplier}`));
-  const body = encodeURIComponent(lines.join('\n'));
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
-}
-function downloadCSV(){
-  if(!latestReorder.length){ alert('Nothing to download'); return; }
-  const header = 'Barcode,Item,On-hand,Min,Supplier';
-  const rows = latestReorder.map(r => [r.barcode, r.item, r.onhand, r.min, r.supplier]
-    .map(x => String(x).replace(/"/g,'""'))
-    .map(x => /[",\n]/.test(x) ? `"${x}"` : x)
-    .join(','));
-  const csv = [header, ...rows].join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'reorder.csv'; document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
-
-/*** Camera ***/
-let stream=null, zxingReader=null; const supportsBarcode=('BarcodeDetector' in window);
-function togglePrice(){ const w=document.getElementById('price-wrap'); if(w) w.style.display = (document.getElementById('scan-mode').value==='IN')?'block':'none'; }
-document.getElementById('scan-mode')?.addEventListener('change', togglePrice); togglePrice();
-async function startCamera(){ try{
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-  const v=$('#video'); if(!v) return; v.srcObject=stream; await v.play();
-  document.getElementById('camWrap').style.display='block'; document.getElementById('btnStopCam').style.display='inline-block';
-  if(supportsBarcode){
-    const det=new BarcodeDetector({formats:['ean_13','upc_a','code_128','code_39','ean_8','itf']});
-    const loop=async()=>{ if(!stream) return; try{ const codes=await det.detect(v); if(codes.length){ const val=codes[0].rawValue; $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } }catch(e){} requestAnimationFrame(loop); };
-    loop();
-  } else if(window.ZXing){
-    zxingReader=new ZXing.BrowserMultiFormatReader();
-    await zxingReader.decodeFromVideoDevice(null,'video',(result)=>{ if(result){ const val=result.getText(); $('#scan-barcode').value=val; if($('#auto-add').checked) addTx(); } });
-  } else {
-    alert('Camera scanning not supported on this browser. Use a Bluetooth scanner.');
-  }
-}catch(e){ alert('Camera error: '+e.message); } }
-function stopCamera(){ try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){} if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } document.getElementById('camWrap').style.display='none'; document.getElementById('btnStopCam').style.display='none'; }
-
-/*** Events ***/
-document.getElementById('btnSignUp')?.addEventListener('click', signUp);
-document.getElementById('btnSignIn')?.addEventListener('click', signIn);
-document.getElementById('btnUpsertItem')?.addEventListener('click', upsertItem);
-document.getElementById('btnClearItem')?.addEventListener('click', ()=>['#cat-barcode','#cat-name','#cat-pack','#cat-min','#cat-supplier'].forEach(s=>$(s).value=''));
-document.getElementById('btnAddTx')?.addEventListener('click', addTx);
-document.getElementById('scan-barcode')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ addTx(); }});
-document.getElementById('btnReload')?.addEventListener('click', loadAll);
-document.getElementById('btnPrint')?.addEventListener('click', ()=>window.print());
-document.getElementById('btnCamera')?.addEventListener('click', startCamera);
-document.getElementById('btnStopCam')?.addEventListener('click', stopCamera);
-document.getElementById('btnEmail')?.addEventListener('click', emailReorder);
-document.getElementById('btnCSV')?.addEventListener('click', downloadCSV);
+})();
 </script>
 </body>
 </html>
