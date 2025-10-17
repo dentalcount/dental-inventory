@@ -48,7 +48,15 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Dental Inventory <span id="roleBadge" class="pill hidden"></span></h1>
+  <!-- Header with in-app Reset & Sign out -->
+  <h1 class="flex" style="justify-content:space-between;align-items:center">
+    <span>Dental Inventory <span id="roleBadge" class="pill hidden"></span></span>
+    <span class="flex" style="gap:8px">
+      <span id="userEmail" class="badge hidden"></span>
+      <button id="btnInAppReset" class="btn alt">Reset Session</button>
+      <button id="btnSignOut" class="btn alt">Sign out</button>
+    </span>
+  </h1>
 
   <!-- Auth -->
   <div id="authCard" class="card">
@@ -183,16 +191,29 @@
     auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
   });
 
-  // Complete OAuth/Magic return then clean the URL
+  // --- Finish OAuth/Magic return; then immediately render if logged in (helps Incognito) ---
   (async () => {
     const href = window.location.href;
-    if (href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=')) {
+    const hasReturn = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
+
+    if (hasReturn) {
       const { error } = await supa.auth.exchangeCodeForSession(href);
+      // Clean the URL so refreshes don't re-exchange
       window.history.replaceState({}, '', REDIRECT_URL);
       if (error) {
         console.error('exchangeCodeForSession error', error);
         alert('Login could not be completed. Please try again.');
+        return;
       }
+    }
+
+    // Immediate session check to avoid race with onAuthStateChange
+    const { data: { session } } = await supa.auth.getSession();
+    if (session?.user) {
+      await loadProfile().catch(()=>{});
+      await refresh().catch(()=>{});
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
     }
   })();
 
@@ -202,6 +223,7 @@
   const app = el('app');
   const roleBadge = el('roleBadge');
   const orgHint = el('orgHint');
+  const userEmailBadge = el('userEmail');
 
   const inBarcode = el('inBarcode');
   const inName = el('inName');
@@ -244,10 +266,23 @@
     if (error) alert(error.message);
   };
 
+  // Pre-login reset
   el('btnReset').onclick = async () => {
-    await supa.auth.signOut();
+    try { await supa.auth.signOut(); } catch {}
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
+  };
+
+  // In-app reset + sign-out
+  el('btnInAppReset').onclick = async () => {
+    try { await supa.auth.signOut(); } catch {}
+    localStorage.clear(); sessionStorage.clear();
+    location.replace(REDIRECT_URL);
+  };
+  el('btnSignOut').onclick = async () => {
+    await supa.auth.signOut();
+    authCard.classList.remove('hidden');
+    app.classList.add('hidden');
   };
 
   inPhoto.addEventListener('change', () => {
@@ -284,10 +319,31 @@
     }
   })();
 
+  // ====== Helpers ======
+  async function ensureProfileRow(user) {
+    try {
+      const { data, error } = await supa
+        .from('profiles')
+        .select('id').eq('id', user.id)
+        .maybeSingle();
+      if (error && error.code !== 'PGRST116') throw error;
+      if (!data) {
+        await supa.from('profiles').upsert({
+          id: user.id,
+          email: user.email
+        }, { onConflict: 'id' });
+      }
+    } catch (e) {
+      console.warn('ensureProfileRow skipped:', e?.message || e);
+    }
+  }
+
   // ====== PROFILE / ROLE ======
   async function loadProfile() {
     const { data: { user } } = await supa.auth.getUser();
     if (!user) return;
+    await ensureProfileRow(user);
+
     const { data, error } = await supa
       .from('profiles')
       .select('id,email,role,org_id')
@@ -299,6 +355,8 @@
     roleBadge.textContent = isAdmin ? 'Admin' : 'User';
     roleBadge.classList.remove('hidden');
     orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
+    userEmailBadge.textContent = profile.email || 'Signed in';
+    userEmailBadge.classList.remove('hidden');
 
     // Admin UI bits
     el('chkAll').disabled = !isAdmin;
