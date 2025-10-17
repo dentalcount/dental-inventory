@@ -19,7 +19,7 @@
     .card{background:linear-gradient(180deg,#0b1220,#0b1220) padding-box,linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,0)) border-box;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
     h1{font-weight:700;letter-spacing:.3px}
     label{display:block;margin:.5rem 0 .25rem;color:var(--muted);font-size:.9rem}
-    input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:var(--text);outline:none}
+    input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:#e5e7eb;outline:none}
     input:focus{border-color:var(--accent)}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
@@ -73,7 +73,7 @@
     </div>
 
     <div class="hint" style="margin-top:8px">
-      Tip: Magic Link avoids OAuth domain quirks on GitHub Pages. Google works too once URL settings match exactly.
+      Magic Link avoids OAuth domain quirks on GitHub Pages. Google works too once URL settings match exactly.
     </div>
   </div>
 
@@ -164,27 +164,30 @@
 (function boot() {
   if (!window.supabase) return setTimeout(boot, 10);
 
-  // ====== CONFIG ======
-  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // MUST match Supabase auth URLs
+  /*** CONFIG ***/
+  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // MUST match Supabase Auth URLs
 
-  const SUPABASE_URL = 'https://sgjoadsefpcixvmthtfy.supabase.co'; // <-- YOUR real project URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';               // <-- YOUR real anon key
+  const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+  /**************/
 
-  // Basic guard to avoid "Invalid URL"
+  // Guards to avoid silent failures
   if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
     alert('Config error: SUPABASE_URL is missing/invalid'); return;
   }
+  if (!SUPABASE_ANON || SUPABASE_ANON.length < 50) {
+    alert('Config error: anon key missing/too short'); return;
+  }
 
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
   });
 
-  // ====== Explicitly complete OAuth / Magic-link on return, then clean URL ======
+  // Complete OAuth/Magic return then clean the URL
   (async () => {
     const href = window.location.href;
     if (href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=')) {
       const { error } = await supa.auth.exchangeCodeForSession(href);
-      // Clean the URL (prevents re-exchange on refresh)
       window.history.replaceState({}, '', REDIRECT_URL);
       if (error) {
         console.error('exchangeCodeForSession error', error);
@@ -468,4 +471,3 @@
 </script>
 </body>
 </html>
-
