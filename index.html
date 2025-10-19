@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Dental Inventory</title>
 
-  <!-- Inline favicon so no 404 on subpath -->
+  <!-- Inline favicon -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
-  <!-- Load Supabase UMD BEFORE app code (no defer) -->
+  <!-- Supabase UMD (no defer) -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 
   <style>
@@ -44,15 +44,22 @@
     .preview{max-height:64px;border-radius:8px;border:1px solid rgba(255,255,255,.1)}
     .tight{max-width:680px}
     .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    /* Debug panel */
+    #debugPanel{position:fixed;bottom:0;left:0;right:0;max-height:45vh;overflow:auto;background:#0a0f1d;border-top:1px solid rgba(255,255,255,.12);box-shadow:0 -4px 20px rgba(0,0,0,.35);font-size:12px}
+    #debugHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}
+    #debugBody{padding:8px}
+    #log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
+    .chip{border:1px solid rgba(255,255,255,.12);padding:.15rem .45rem;border-radius:999px;background:#101830}
   </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- Header with in-app Reset & Sign out -->
+  <!-- Header with in-app Reset & Sign out + Debug toggle -->
   <h1 class="flex" style="justify-content:space-between;align-items:center">
     <span>Dental Inventory <span id="roleBadge" class="pill hidden"></span></span>
     <span class="flex" style="gap:8px">
       <span id="userEmail" class="badge hidden"></span>
+      <button id="btnShowDebug" class="btn alt">Show Debug</button>
       <button id="btnInAppReset" class="btn alt">Reset Session</button>
       <button id="btnSignOut" class="btn alt">Sign out</button>
     </span>
@@ -167,63 +174,88 @@
   </div>
 </div>
 
-<!-- App script -->
+<!-- Debug Panel -->
+<div id="debugPanel" class="hidden">
+  <div id="debugHead">
+    <span class="chip">Auth Debug</span>
+    <button id="btnForceSession" class="btn alt" style="width:auto">Force Session Check</button>
+    <button id="btnDump" class="btn alt" style="width:auto">Dump State</button>
+    <button id="btnNuke" class="btn alt" style="width:auto">Nuke Storage</button>
+    <span id="dbgStatus" class="hint" style="margin-left:auto"></span>
+  </div>
+  <div id="debugBody">
+    <div class="hint">URL: <span id="dbgUrl"></span></div>
+    <div class="hint">localStorage OK? <span id="dbgLS"></span> • sessionStorage OK? <span id="dbgSS"></span></div>
+    <pre id="log"></pre>
+  </div>
+</div>
+
 <script>
 (function boot() {
   if (!window.supabase) return setTimeout(boot, 10);
 
   /*** CONFIG ***/
-  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/'; // MUST match Supabase Auth URLs
+  const REDIRECT_URL = 'https://dentalcount.github.io/dental-inventory/';
 
   const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
   /**************/
 
-  // Guards to avoid silent failures
-  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
-    alert('Config error: SUPABASE_URL is missing/invalid'); return;
-  }
-  if (!SUPABASE_ANON || SUPABASE_ANON.length < 50) {
-    alert('Config error: anon key missing/too short'); return;
+  // ===== Debug helpers =====
+  const qs = new URLSearchParams(location.search);
+  const DEBUG = qs.get('debug') === '1' || localStorage.DEBUG_AUTH === '1';
+  const panel = document.getElementById('debugPanel');
+  const logEl = document.getElementById('log');
+  const dbgStatus = document.getElementById('dbgStatus');
+  const dbgUrl = document.getElementById('dbgUrl');
+  const dbgLS = document.getElementById('dbgLS');
+  const dbgSS = document.getElementById('dbgSS');
+  const showPanel = (on)=> panel.classList.toggle('hidden', !on);
+  const ts = () => new Date().toISOString().split('T')[1].replace('Z','');
+  function dbg(...args){ console.log('[DBG]', ...args); logEl.textContent += `[${ts()}] ${args.map(a => typeof a==='string'?a:JSON.stringify(a)).join(' ')}\n`; }
+  function setStatus(s){ dbgStatus.textContent = s; }
+
+  function storageOK(kind){
+    try{
+      const k='__t__'+Math.random();
+      (kind==='local'?localStorage:sessionStorage).setItem(k,'1');
+      (kind==='local'?localStorage:sessionStorage).removeItem(k);
+      return true;
+    }catch(e){ return false; }
   }
 
+  if (DEBUG) {
+    showPanel(true);
+    dbgUrl.textContent = location.href;
+    dbgLS.textContent = storageOK('local') ? 'yes' : 'no';
+    dbgSS.textContent = storageOK('session') ? 'yes' : 'no';
+  }
+
+  // Guards
+  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
+    alert('Config error: SUPABASE_URL invalid');
+    dbg('BAD SUPABASE_URL');
+    return;
+  }
+  if (!SUPABASE_ANON || SUPABASE_ANON.length < 50) {
+    alert('Config error: anon key missing/too short');
+    dbg('BAD ANON KEY');
+    return;
+  }
+
+  dbg('Creating client…');
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
   });
 
-  // --- Finish OAuth/Magic return; then immediately render if logged in (helps Incognito) ---
-  (async () => {
-    const href = window.location.href;
-    const hasReturn = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
-
-    if (hasReturn) {
-      const { error } = await supa.auth.exchangeCodeForSession(href);
-      // Clean the URL so refreshes don't re-exchange
-      window.history.replaceState({}, '', REDIRECT_URL);
-      if (error) {
-        console.error('exchangeCodeForSession error', error);
-        alert('Login could not be completed. Please try again.');
-        return;
-      }
-    }
-
-    // Immediate session check to avoid race with onAuthStateChange
-    const { data: { session } } = await supa.auth.getSession();
-    if (session?.user) {
-      await loadProfile().catch(()=>{});
-      await refresh().catch(()=>{});
-      authCard.classList.add('hidden');
-      app.classList.remove('hidden');
-    }
-  })();
-
-  // ====== DOM ======
+  // ===== DOM refs =====
   const el = id => document.getElementById(id);
   const authCard = el('authCard');
   const app = el('app');
   const roleBadge = el('roleBadge');
   const orgHint = el('orgHint');
   const userEmailBadge = el('userEmail');
+  const btnShowDebug = el('btnShowDebug');
 
   const inBarcode = el('inBarcode');
   const inName = el('inName');
@@ -243,104 +275,151 @@
   let isAdmin = false;
   let rows = [];
 
-  // ====== AUTH UI ======
+  // Debug toggle
+  btnShowDebug.onclick = () => {
+    const now = panel.classList.contains('hidden');
+    localStorage.DEBUG_AUTH = now ? '1' : '0';
+    showPanel(now);
+  };
+  document.getElementById('btnForceSession').onclick = async () => {
+    dbg('Force session check…');
+    const s = await supa.auth.getSession();
+    dbg('getSession()', s);
+    const u = await supa.auth.getUser();
+    dbg('getUser()', u);
+    setStatus('Forced session checked');
+    if (s?.data?.session?.user) {
+      authCard.classList.add('hidden'); app.classList.remove('hidden');
+    }
+  };
+  document.getElementById('btnDump').onclick = async () => {
+    dbg('Dumping state…');
+    dbg('location.href', location.href);
+    dbg('localStorage keys', Object.keys(localStorage));
+    dbg('sessionStorage keys', Object.keys(sessionStorage));
+    const s = await supa.auth.getSession(); dbg('getSession()', s);
+    const u = await supa.auth.getUser(); dbg('getUser()', u);
+  };
+  document.getElementById('btnNuke').onclick = async () => {
+    dbg('Nuking storages and signOut');
+    try { await supa.auth.signOut(); } catch {}
+    localStorage.clear(); sessionStorage.clear();
+    location.replace(REDIRECT_URL);
+  };
+
+  // ===== Finish OAuth/Magic return; immediate render if present =====
+  (async () => {
+    const href = window.location.href;
+    const hasReturn = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
+    dbg('Page load. hasReturn=', hasReturn, 'href=', href);
+
+    if (hasReturn) {
+      setStatus('Exchanging auth code…');
+      const res = await supa.auth.exchangeCodeForSession(href);
+      dbg('exchangeCodeForSession()', res);
+      window.history.replaceState({}, '', REDIRECT_URL);
+      setStatus('Code exchanged; URL cleaned.');
+      if (res.error) {
+        alert('Login could not be completed. See debug.');
+        return;
+      }
+    }
+
+    const s = await supa.auth.getSession();
+    dbg('Initial getSession()', s);
+    const user = s?.data?.session?.user;
+    if (user) {
+      dbg('Session user present; rendering app…');
+      await loadProfile().catch(e=>dbg('loadProfile error', e));
+      await refresh().catch(e=>dbg('refresh error', e));
+      authCard.classList.add('hidden');
+      app.classList.remove('hidden');
+      setStatus('Rendered with active session.');
+    } else {
+      dbg('No session on initial check; showing login.');
+      setStatus('No session found.');
+    }
+  })();
+
+  // ===== AUTH UI =====
   el('btnMagic').onclick = async () => {
     const email = el('email').value.trim();
     if (!email) return alert('Enter your email');
-    const { error } = await supa.auth.signInWithOtp({
+    dbg('signInWithOtp ->', email);
+    const { data, error } = await supa.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: REDIRECT_URL }
     });
+    dbg('signInWithOtp result', { data, error });
     if (error) return alert(error.message);
     alert('Check your email for the sign-in link.');
   };
 
   el('btnGoogle').onclick = async () => {
-    const { error } = await supa.auth.signInWithOAuth({
+    dbg('signInWithOAuth -> google');
+    const { data, error } = await supa.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: REDIRECT_URL,
         queryParams: { prompt: 'select_account' }
       }
     });
+    dbg('signInWithOAuth result', { data, error });
     if (error) alert(error.message);
   };
 
-  // Pre-login reset
   el('btnReset').onclick = async () => {
+    dbg('pre-login reset');
     try { await supa.auth.signOut(); } catch {}
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
 
-  // In-app reset + sign-out
   el('btnInAppReset').onclick = async () => {
+    dbg('in-app reset');
     try { await supa.auth.signOut(); } catch {}
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
   el('btnSignOut').onclick = async () => {
+    dbg('signOut()');
     await supa.auth.signOut();
     authCard.classList.remove('hidden');
     app.classList.add('hidden');
   };
 
-  inPhoto.addEventListener('change', () => {
-    const f = inPhoto.files?.[0];
-    if (f) {
-      const url = URL.createObjectURL(f);
-      photoPreview.src = url;
-      photoPreviewWrap.classList.remove('hidden');
-    } else {
-      photoPreviewWrap.classList.add('hidden');
-    }
-  });
-
-  // ====== SESSION BRIDGE ======
-  supa.auth.onAuthStateChange(async (_event, session) => {
+  // ===== Auth state listener =====
+  supa.auth.onAuthStateChange(async (event, session) => {
+    dbg('onAuthStateChange', { event, hasSession: !!session });
     if (session?.user) {
-      await loadProfile();
-      await refresh();
+      await loadProfile().catch(e=>dbg('loadProfile error (listener)', e));
+      await refresh().catch(e=>dbg('refresh error (listener)', e));
       authCard.classList.add('hidden');
       app.classList.remove('hidden');
+      setStatus(`Auth event: ${event}`);
     } else {
       authCard.classList.remove('hidden');
       app.classList.add('hidden');
+      setStatus(`Auth event (no session): ${event}`);
     }
   });
 
-  (async () => {
-    const { data: { session } } = await supa.auth.getSession();
-    if (session?.user) {
-      await loadProfile();
-      await refresh();
-      authCard.classList.add('hidden');
-      app.classList.remove('hidden');
-    }
-  })();
-
-  // ====== Helpers ======
+  // ===== Profile helpers =====
   async function ensureProfileRow(user) {
     try {
-      const { data, error } = await supa
-        .from('profiles')
-        .select('id').eq('id', user.id)
-        .maybeSingle();
+      const { data, error } = await supa.from('profiles').select('id').eq('id', user.id).maybeSingle();
       if (error && error.code !== 'PGRST116') throw error;
       if (!data) {
-        await supa.from('profiles').upsert({
-          id: user.id,
-          email: user.email
-        }, { onConflict: 'id' });
+        dbg('ensureProfileRow: inserting minimal row');
+        await supa.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
       }
-    } catch (e) {
-      console.warn('ensureProfileRow skipped:', e?.message || e);
-    }
+    } catch (e) { dbg('ensureProfileRow skipped', e?.message||e); }
   }
 
-  // ====== PROFILE / ROLE ======
   async function loadProfile() {
-    const { data: { user } } = await supa.auth.getUser();
+    const u = await supa.auth.getUser();
+    dbg('getUser()', u);
+    const user = u?.data?.user;
     if (!user) return;
     await ensureProfileRow(user);
 
@@ -349,7 +428,9 @@
       .select('id,email,role,org_id')
       .eq('id', user.id)
       .single();
-    if (error) { console.warn('profile load error', error); return; }
+    dbg('profiles fetch', { data, error });
+    if (error) return;
+
     profile = data;
     isAdmin = profile.role === 'admin';
     roleBadge.textContent = isAdmin ? 'Admin' : 'User';
@@ -358,13 +439,12 @@
     userEmailBadge.textContent = profile.email || 'Signed in';
     userEmailBadge.classList.remove('hidden');
 
-    // Admin UI bits
     el('chkAll').disabled = !isAdmin;
     btnExport.disabled = !isAdmin;
     lblImport.classList.toggle('hidden', !isAdmin);
   }
 
-  // ====== STORAGE: PHOTO UPLOAD ======
+  // ===== Inventory UI (unchanged core) =====
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -375,7 +455,6 @@
     return data?.publicUrl || null;
   }
 
-  // ====== ADD / UPSERT ITEM ======
   el('btnAdd').onclick = async () => {
     const barcode = inBarcode.value.trim();
     const name = inName.value.trim();
@@ -397,13 +476,7 @@
     let photo_url = null;
     if (inPhoto.files?.[0]) photo_url = await uploadPhoto(inPhoto.files[0], tmpId);
 
-    const payload = {
-      barcode,
-      ...(name ? { name } : {}),
-      unit,
-      pack_size: pack,
-      ...(photo_url ? { photo_url } : {})
-    };
+    const payload = { barcode, ...(name ? { name } : {}), unit, pack_size: pack, ...(photo_url ? { photo_url } : {}) };
 
     const resp = existing
       ? await supa.from('catalogue').update(payload).eq('id', existing.id).select().single()
@@ -423,16 +496,13 @@
     photoPreviewWrap.classList.add('hidden');
   }
 
-  // ====== FETCH & RENDER ======
   async function fetchCatalogue() {
-    return await supa.from('v_catalogue_with_owner')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1000);
+    return await supa.from('v_catalogue_with_owner').select('*').order('updated_at', { ascending: false }).limit(1000);
   }
 
   async function refresh() {
     const { data, error } = await fetchCatalogue();
+    dbg('refresh()', { count: data?.length, error });
     if (error) { alert(error.message); return; }
     rows = data || [];
     render();
@@ -492,19 +562,14 @@
     const val = (row[field] ?? '');
     return `<input data-edit="${row.id}" data-field="${field}" value="${escapeHtml(val)}" />`;
   }
-  function escapeHtml(s) {
-    return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-  }
+  function escapeHtml(s) { return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
 
   async function onInlineEdit(e) {
     const input = e.currentTarget || this;
     const id = input.getAttribute('data-edit');
     const field = input.getAttribute('data-field');
     const value = input.value.trim() || null;
-    if (field === 'name' && (!value || value.length === 0)) {
-      alert('Name is required.');
-      return render();
-    }
+    if (field === 'name' && (!value || value.length === 0)) { alert('Name is required.'); return render(); }
     const payload = {}; payload[field] = value;
     const { error } = await supa.from('catalogue').update(payload).eq('id', id);
     if (error) alert(error.message);
@@ -524,7 +589,6 @@
   el('btnRefresh').onclick = refresh;
   el('chkAll').addEventListener('change', refresh);
   inSearch.addEventListener('input', render);
-
 })(); // boot
 </script>
 </body>
