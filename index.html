@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Dental Inventory</title>
 
-  <!-- Inline favicon -->
+  <!-- Inline favicon (no 404 on subpath) -->
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
@@ -212,8 +212,8 @@
   const dbgSS = document.getElementById('dbgSS');
   const showPanel = (on)=> panel.classList.toggle('hidden', !on);
   const ts = () => new Date().toISOString().split('T')[1].replace('Z','');
-  function dbg(...args){ console.log('[DBG]', ...args); logEl.textContent += `[${ts()}] ${args.map(a => typeof a==='string'?a:JSON.stringify(a)).join(' ')}\n`; }
-  function setStatus(s){ dbgStatus.textContent = s; }
+  function dbg(...args){ console.log('[DBG]', ...args); if(DEBUG){ logEl.textContent += `[${ts()}] ${args.map(a => typeof a==='string'?a:JSON.stringify(a)).join(' ')}\n`; } }
+  function setStatus(s){ if(DEBUG){ dbgStatus.textContent = s; } }
 
   function storageOK(kind){
     try{
@@ -232,20 +232,13 @@
   }
 
   // Guards
-  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) {
-    alert('Config error: SUPABASE_URL invalid');
-    dbg('BAD SUPABASE_URL');
-    return;
-  }
-  if (!SUPABASE_ANON || SUPABASE_ANON.length < 50) {
-    alert('Config error: anon key missing/too short');
-    dbg('BAD ANON KEY');
-    return;
-  }
+  if (!/^https?:\/\/.+\.supabase\.co\/?$/i.test(SUPABASE_URL)) { alert('Config error: SUPABASE_URL invalid'); dbg('BAD SUPABASE_URL'); return; }
+  if (!SUPABASE_ANON || SUPABASE_ANON.length < 50) { alert('Config error: anon key missing/too short'); dbg('BAD ANON KEY'); return; }
 
   dbg('Creating client…');
   const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-    auth: { persistSession: true, detectSessionInUrl: true, flowType: 'pkce' }
+    // IMPORTANT: we handle the return ourselves to avoid races
+    auth: { persistSession: true, detectSessionInUrl: false, flowType: 'pkce' }
   });
 
   // ===== DOM refs =====
@@ -283,14 +276,10 @@
   };
   document.getElementById('btnForceSession').onclick = async () => {
     dbg('Force session check…');
-    const s = await supa.auth.getSession();
-    dbg('getSession()', s);
-    const u = await supa.auth.getUser();
-    dbg('getUser()', u);
+    const s = await supa.auth.getSession(); dbg('getSession()', s);
+    const u = await supa.auth.getUser(); dbg('getUser()', u);
     setStatus('Forced session checked');
-    if (s?.data?.session?.user) {
-      authCard.classList.add('hidden'); app.classList.remove('hidden');
-    }
+    if (s?.data?.session?.user) { authCard.classList.add('hidden'); app.classList.remove('hidden'); }
   };
   document.getElementById('btnDump').onclick = async () => {
     dbg('Dumping state…');
@@ -311,32 +300,30 @@
   (async () => {
     const href = window.location.href;
     const hasReturn = href.includes('?code=') || href.includes('&code=') || href.includes('#access_token=');
-    dbg('Page load. hasReturn=', hasReturn, 'href=', href);
+    dbg('Return handler start. hasReturn=', hasReturn, 'href=', href);
 
     if (hasReturn) {
       setStatus('Exchanging auth code…');
-      const res = await supa.auth.exchangeCodeForSession(href);
-      dbg('exchangeCodeForSession()', res);
+      const { data, error } = await supa.auth.exchangeCodeForSession(href);
+      dbg('exchangeCodeForSession ->', { ok: !error, gotSession: !!data?.session, error: error?.message });
+      // Clean URL so refreshes don't loop
       window.history.replaceState({}, '', REDIRECT_URL);
       setStatus('Code exchanged; URL cleaned.');
-      if (res.error) {
-        alert('Login could not be completed. See debug.');
-        return;
-      }
+      if (error) { alert('Login failed to complete: ' + error.message); return; }
     }
 
-    const s = await supa.auth.getSession();
-    dbg('Initial getSession()', s);
-    const user = s?.data?.session?.user;
-    if (user) {
-      dbg('Session user present; rendering app…');
-      await loadProfile().catch(e=>dbg('loadProfile error', e));
-      await refresh().catch(e=>dbg('refresh error', e));
+    // Force-read the session now (don’t rely on listener timing)
+    const { data: { session } } = await supa.auth.getSession();
+    dbg('post-exchange getSession -> has user?', !!session?.user);
+
+    // **Show the app immediately**; background-load profile & data
+    if (session?.user) {
       authCard.classList.add('hidden');
       app.classList.remove('hidden');
+      try { await loadProfile(); } catch(e){ dbg('loadProfile error', e); }
+      try { await refresh(); } catch(e){ dbg('refresh error', e); }
       setStatus('Rendered with active session.');
     } else {
-      dbg('No session on initial check; showing login.');
       setStatus('No session found.');
     }
   })();
@@ -368,6 +355,7 @@
     if (error) alert(error.message);
   };
 
+  // Pre-login reset
   el('btnReset').onclick = async () => {
     dbg('pre-login reset');
     try { await supa.auth.signOut(); } catch {}
@@ -375,6 +363,7 @@
     location.replace(REDIRECT_URL);
   };
 
+  // In-app reset + sign-out
   el('btnInAppReset').onclick = async () => {
     dbg('in-app reset');
     try { await supa.auth.signOut(); } catch {}
@@ -388,14 +377,15 @@
     app.classList.add('hidden');
   };
 
-  // ===== Auth state listener =====
+  // ===== Auth state listener (flip UI immediately) =====
   supa.auth.onAuthStateChange(async (event, session) => {
     dbg('onAuthStateChange', { event, hasSession: !!session });
     if (session?.user) {
-      await loadProfile().catch(e=>dbg('loadProfile error (listener)', e));
-      await refresh().catch(e=>dbg('refresh error (listener)', e));
+      // Show app immediately; do work in background
       authCard.classList.add('hidden');
       app.classList.remove('hidden');
+      try { await loadProfile(); } catch(e){ dbg('loadProfile error (listener)', e); }
+      try { await refresh(); } catch(e){ dbg('refresh error (listener)', e); }
       setStatus(`Auth event: ${event}`);
     } else {
       authCard.classList.remove('hidden');
@@ -404,7 +394,7 @@
     }
   });
 
-  // ===== Profile helpers =====
+  // ===== Helpers =====
   async function ensureProfileRow(user) {
     try {
       const { data, error } = await supa.from('profiles').select('id').eq('id', user.id).maybeSingle();
@@ -444,7 +434,7 @@
     lblImport.classList.toggle('hidden', !isAdmin);
   }
 
-  // ===== Inventory UI (unchanged core) =====
+  // ===== Inventory UI =====
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -586,6 +576,7 @@
     await refresh();
   }
 
+  // Misc UI
   el('btnRefresh').onclick = refresh;
   el('chkAll').addEventListener('change', refresh);
   inSearch.addEventListener('input', render);
