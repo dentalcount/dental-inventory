@@ -221,7 +221,7 @@
   $('btnPermWrite').onclick = async ()=>{
     dbg('Permissions WRITE probe…');
     const barcode = 'DEBUG-' + Math.random().toString(36).slice(2,6);
-    const ins = await raceTimeout('insert probe', supa.from('catalogue').insert({ barcode, name:'probe', unit:'ea', pack_size:'1', ...(profile?.id?{owner_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{}) }).select().single(), 6000);
+    const ins = await raceTimeout('insert probe', supa.from('catalogue').insert({ barcode, name:'probe', unit:'ea', pack_size:'1', ...(profile?.id?{user_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{}) }).select().single(), 6000);
     if(ins._timeout){ dbg('insert probe -> TIMEOUT'); }
     else if(ins._err){ dbg('insert probe -> ERR:', ins.error.message||String(ins.error)); }
     else { dbg('insert probe -> OK id=', ins.value.data?.id); await raceTimeout('delete probe', supa.from('catalogue').delete().eq('id', ins.value.data.id), 4000); }
@@ -293,7 +293,7 @@
     if(lookup._timeout){ dbg('lookup -> TIMEOUT'); }
     if(lookup._err){ dbg('lookup -> ERR', lookup.error.message||String(lookup.error)); alert('Lookup failed'); return; }
 
-    const payload = { barcode, ...(name?{name}:{}) , unit, pack_size:pack, ...(profile?.id?{owner_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{}) };
+    const payload = { barcode, ...(name?{name}:{}) , unit, pack_size:pack, ...(profile?.id?{user_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{}) };
 
     if (lookup.value.data) {
       const upd = await raceTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', lookup.value.data.id).select().single(), 8000);
@@ -345,3 +345,4 @@
 })();</script>
 </body>
 </html>
+
