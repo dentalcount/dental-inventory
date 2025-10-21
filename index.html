@@ -224,7 +224,7 @@
     const ins = await raceTimeout('insert probe', supa.from('catalogue').insert({
       barcode, name:'probe', unit:'ea', pack_size:'1',
       ...(profile?.id?{user_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{})
-    }).select().single(), 6000);
++   }), 6000);
     if(ins._timeout){ dbg('insert probe -> TIMEOUT'); }
     else if(ins._err){ dbg('insert probe -> ERR:', ins.error.message||String(ins.error)); }
     else if(ins.value?.data?.id){
@@ -306,12 +306,12 @@
     };
 
     if (lookup.value?.data) {
-      const upd = await raceTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', lookup.value.data.id).select().single(), 8000);
+      const upd = await raceTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', lookup.value.data.id), 8000);
       if(upd._timeout){ dbg('update -> TIMEOUT (will try REST fallback)'); await restUpdate(lookup.value.data.id, payload); }
       else if(upd._err){ dbg('update -> ERR', upd.error.message||String(upd.error)); alert('Update failed: '+(upd.error.message||upd.error)); }
       else { dbg('update -> OK'); await refresh(); }
     } else {
-      const ins = await raceTimeout('catalogue.insert', supa.from('catalogue').insert(payload).select().single(), 8000);
+      const ins = await raceTimeout('catalogue.insert', supa.from('catalogue').insert(payload), 8000);
       if(ins._timeout){ dbg('insert -> TIMEOUT (will try REST fallback)'); await restInsert(payload); }
       else if(ins._err){ dbg('insert -> ERR', ins.error.message||String(ins.error)); alert('Insert failed: '+(ins.error.message||ins.error)); }
       else { dbg('insert -> OK'); clearInputs(); await refresh(); }
@@ -355,3 +355,4 @@
 })();</script>
 </body>
 </html>
+
