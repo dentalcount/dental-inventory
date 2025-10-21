@@ -4,26 +4,47 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dental Inventory</title>
+
+<!-- Favicon (inline 🦷). To use your own file instead, replace this line with: <link rel="icon" href="favicon.ico"> -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
+
+<!-- Supabase SDK -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+
 <style>
-  :root{--muted:#94a3b8;--text:#e5e7eb}
-  html,body{margin:0;background:#0b1220;color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  :root{--muted:#94a3b8;--text:#e5e7eb;--bg:#0b1220;--panel:#0c1426;--border:rgba(255,255,255,.10);--accent:#22d3ee}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   .wrap{max-width:1100px;margin:0 auto;padding:20px}
-  .card{background:#0c1426;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:16px;margin:14px 0}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  input,button{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0d1526;color:#e5e7eb}
+  input,button,select{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid var(--border);background:#0d1526;color:#e5e7eb;outline:none}
+  input:focus,select:focus{border-color:var(--accent)}
   .btn{cursor:pointer;border:none}
-  .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#002b36;font-weight:700}
+  .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#022;font-weight:700}
   .btn.alt{background:#1f2937}
   .hidden{display:none!important}
-  #debugPanel{position:fixed;bottom:0;left:0;right:0;max-height:48vh;overflow:auto;background:#0a0f1d;border-top:1px solid rgba(255,255,255,.12);font-size:12px}
-  #debugHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid rgba(255,255,255,.08)}
-  #debugBody{padding:8px}
-  #log{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace}
-  .chip{border:1px solid rgba(255,255,255,.12);padding:.15rem .45rem;border-radius:999px;background:#101830}
-  .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid rgba(255,255,255,.08);font-size:.75rem}
+  table{width:100%;border-collapse:separate;border-spacing:0 8px}
+  th,td{padding:.6rem .55rem;text-align:left}
+  thead th{font-size:.85rem;color:var(--muted)}
+  tbody tr{background:#0d1629;border:1px solid rgba(255,255,255,.08)}
+  tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
+  tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
+  .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
+  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+  /* Debug dock */
+  #debug{position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px}
+  #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
+  #dbgBody{padding:8px}
+  pre{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;margin:0}
+  /* Scanner modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center}
+  .sheet{background:#0b1220;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:680px;width:92%}
+  video{width:100%;max-height:300px;background:#000;border-radius:12px;border:1px solid var(--border)}
+  canvas{display:none}
+  .hint{color:var(--muted);font-size:.85rem}
+  .file{display:inline-block;padding:.5rem .7rem;border:1px dashed var(--border);border-radius:8px;background:#101830;cursor:pointer}
+  .file input{display:none}
 </style>
 </head>
 <body>
@@ -48,32 +69,49 @@
       <div><button id="btnGoogle" class="btn alt">Continue with Google</button></div>
       <div><button id="btnReset" class="btn alt">Reset Session</button></div>
     </div>
+    <div class="hint" style="margin-top:8px">If Google shows the account chooser then returns here, that’s expected—PKCE finishes the sign-in on this page.</div>
   </div>
 
   <!-- App -->
   <div id="app" class="hidden">
+    <!-- Add / Scan -->
     <div class="card">
       <div class="row3">
-        <div><input id="inBarcode" placeholder="Barcode (required)"/></div>
+        <div>
+          <div style="display:flex;gap:8px">
+            <input id="inBarcode" class="mono" placeholder="Scan or type barcode…"/>
+            <button id="btnScan" class="btn alt" style="width:auto">📷 Scan</button>
+          </div>
+        </div>
         <div><input id="inName" placeholder="Item Name (required for new)"/></div>
-        <div><input id="inUnit" placeholder="Unit"/></div>
+        <div><input id="inUnit" placeholder="Unit (e.g., box / pack / ea)"/></div>
       </div>
       <div class="row3" style="margin-top:8px">
-        <div><input id="inPack" placeholder="Pack size"/></div>
-        <div></div>
+        <div><input id="inPack" placeholder="Pack size (e.g., x10 / 50pcs / 3g)"/></div>
+        <div>
+          <label class="file"><input id="inPhoto" type="file" accept="image/*" capture="environment"/>Upload Photo</label>
+          <span id="photoName" class="hint" style="margin-left:8px"></span>
+        </div>
         <div style="align-self:end"><button id="btnAdd" class="btn primary">Save / Upsert</button></div>
       </div>
     </div>
 
+    <!-- Catalogue -->
     <div class="card">
-      <div style="display:flex;gap:10px;align-items:center">
-        <input id="inSearch" placeholder="Search…"/>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
         <button id="btnRefresh" class="btn">Refresh</button>
+        <button id="btnExport" class="btn">Export CSV</button>
+        <label id="lblImport" class="file hidden"><input id="inImport" type="file" accept=".csv"/>Import CSV (admin)</label>
+        <label class="hint" style="display:flex;gap:8px;align-items:center">
+          <input id="chkAll" type="checkbox" disabled/> View all users
+        </label>
         <span id="orgHint" class="badge"></span>
       </div>
+      <div class="hint" style="margin-top:6px">Tip: click a field to edit inline. Press Enter to save.</div>
       <div style="overflow:auto;margin-top:8px">
-        <table style="width:100%">
-          <thead><tr><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Owner</th></tr></thead>
+        <table>
+          <thead><tr><th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Owner</th><th>Actions</th></tr></thead>
           <tbody id="tblBody"></tbody>
         </table>
       </div>
@@ -81,243 +119,335 @@
   </div>
 </div>
 
+<!-- Scanner Modal -->
+<div id="scanModal" class="modal hidden">
+  <div class="sheet">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong>Barcode Scanner</strong>
+      <button id="btnScanClose" class="btn alt" style="width:auto">Close</button>
+    </div>
+    <video id="scanVideo" playsinline></video>
+    <div class="hint" style="margin-top:6px">
+      Position the barcode within the frame. If scanning doesn’t start, your browser/device may not support the
+      <code>BarcodeDetector</code> API; you can still type the barcode manually.
+    </div>
+  </div>
+</div>
+
 <!-- Debug Panel -->
-<div id="debugPanel" class="hidden">
-  <div id="debugHead">
-    <span class="chip">Auth/DB Debug</span>
-    <button id="btnForceSession" class="btn alt" style="width:auto">Force Session</button>
-    <button id="btnPermRead" class="btn alt" style="width:auto">Perms: Read</button>
-    <button id="btnPermWrite" class="btn alt" style="width:auto">Perms: Write Probe</button>
-    <button id="btnRawProbe" class="btn alt" style="width:auto">Raw REST Probe</button>
-    <button id="btnDump" class="btn alt" style="width:auto">Dump State</button>
-    <button id="btnNuke" class="btn alt" style="width:auto">Nuke Storage</button>
+<div id="debug" class="hidden">
+  <div id="dbgHead">
+    <button id="btnDbgRead" class="btn alt" style="width:auto">Perms: Read</button>
+    <button id="btnDbgWrite" class="btn alt" style="width:auto">Perms: Write</button>
+    <button id="btnDbgRaw" class="btn alt" style="width:auto">Raw REST</button>
     <span id="dbgStatus" style="margin-left:auto;color:#94a3b8"></span>
   </div>
-  <div id="debugBody">
-    <div style="color:#94a3b8">URL: <span id="dbgUrl"></span></div>
-    <div style="color:#94a3b8">localStorage OK? <span id="dbgLS"></span> • sessionStorage OK? <span id="dbgSS"></span></div>
+  <div id="dbgBody">
+    <div class="hint">URL: <span id="dbgUrl"></span></div>
     <pre id="log"></pre>
   </div>
 </div>
 
 <script>
-(function boot(){
-  if(!window.supabase){ return setTimeout(boot, 10); }
-
-  /** CONFIG **/
+(function(){
+  /*** CONFIG ***/
   const REDIRECT_URL  = 'https://dentalcount.github.io/dental-inventory/';
   const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
+  const STORAGE_BUCKET = 'product_photos';
+  /***************/
 
-  /* ===== Debug helpers ===== */
+  // Shorthands + Debug
+  const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
-  const DEBUG = qs.get('debug') === '1' || location.search.includes('?code=');
-  const panel = document.getElementById('debugPanel');
-  const logEl = document.getElementById('log');
-  const dbgStatus = document.getElementById('dbgStatus');
-  const dbgUrl = document.getElementById('dbgUrl');
-  const dbgLS = document.getElementById('dbgLS');
-  const dbgSS = document.getElementById('dbgSS');
-  function showPanel(on){ panel.classList.toggle('hidden', !on); }
-  const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
-  function dbg(...args){ console.log('[DBG]', ...args); if(DEBUG){ logEl.textContent += `[${ts()}] ${args.map(a=>typeof a==='string'?a:JSON.stringify(a)).join(' ')}\n`; } }
-  function setStatus(s){ if(DEBUG){ dbgStatus.textContent = s; } }
-  function storageOK(kind){ try{ const k='__t__'+Math.random(); (kind==='local'?localStorage:sessionStorage).setItem(k,'1'); (kind==='local'?localStorage:sessionStorage).removeItem(k); return true; }catch(e){ return false; } }
+  const DEBUG = qs.get('debug') === '1';
+  const logEl = $('log'), dbgUrl = $('dbgUrl'), dbgStatus = $('dbgStatus');
+  const dbg = (...a)=>{ console.log('[DBG]', ...a); if(DEBUG){ logEl.textContent += a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ') + '\n'; } };
+  if (DEBUG) { $('debug').classList.remove('hidden'); dbgUrl.textContent = location.href; }
+  $('btnShowDebug').onclick = ()=> $('debug').classList.remove('hidden');
 
-  if (DEBUG) { showPanel(true); dbgUrl.textContent = location.href; dbgLS.textContent = storageOK('local')?'yes':'no'; dbgSS.textContent = storageOK('session')?'yes':'no'; }
-
-  window.addEventListener('error', e=>dbg('onerror', e.message));
-  window.addEventListener('unhandledrejection', e=>dbg('unhandledrejection', e.reason?.message || String(e.reason)));
-
-  /* === Promise.race timeout that RETURNS === */
-  async function raceTimeout(label, promise, ms=6000) {
-    let finished = false;
-    const timed = new Promise(res=>setTimeout(()=>{ if(!finished){ dbg(`TIMEOUT(${label}): ${ms}ms`); res({ _timeout:true, label }); } }, ms));
-    const wrapped = promise.then(v=>({_ok:true, value:v})).catch(e=>({_err:true, error:e}));
-    const result = await Promise.race([ wrapped, timed ]);
-    finished = true;
-    return result;
-  }
-
-  /* Create client (expose for console) */
+  // Supabase client
   dbg('Creating client…');
   const supa = window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
   });
 
-  /* DOM refs */
-  const $ = id=>document.getElementById(id);
-  const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
-  const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack');
-  const tblBody=$('tblBody');
+  // DOM refs
+  const authCard=$('authCard'), app=$('app'); const roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
+  const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inPhoto=$('inPhoto'), photoName=$('photoName');
+  const tblBody=$('tblBody'); const chkAll=$('chkAll'); const btnExport=$('btnExport'); const lblImport=$('lblImport'); const inImport=$('inImport');
 
-  let profile=null, rows=[];
+  let profile=null, isAdmin=false, rows=[];
 
-  $('btnShowDebug').onclick = () => { const now=panel.classList.contains('hidden'); showPanel(now); };
+  // Auth handlers
+  async function boot() {
+    const hasReturn = location.search.includes('?code=');
+    dbg('Return handler start. hasReturn=', hasReturn, 'href=', location.href);
+    const { data: { session } } = await supa.auth.getSession();
+    if (session?.user) { await onSignedIn(session.user); if (hasReturn) history.replaceState({}, '', REDIRECT_URL); }
+  }
+  supa.auth.onAuthStateChange(async (event, session) => {
+    dbg('onAuthStateChange', {event, hasSession: !!session});
+    if (session?.user) await onSignedIn(session.user);
+  });
 
-  /* Post-return poll */
-  (async()=>{
-    const cameBack = location.search.includes('?code=');
-    dbg('Return handler start. hasReturn=', cameBack, 'href=', location.href);
-    const pollEnd = Date.now()+8000;
-    let sess = await supa.auth.getSession(); dbg('Initial getSession -> has user?', !!sess.data?.session?.user);
-    while(!sess.data?.session?.user && Date.now()<pollEnd){
-      setStatus('Waiting for session…'); await new Promise(r=>setTimeout(r,250));
-      sess = await supa.auth.getSession();
-    }
-    if(sess.data?.session?.user){
-      authCard.classList.add('hidden'); app.classList.remove('hidden');
-      try{ await loadProfile(); }catch(e){ dbg('loadProfile ERR', e?.message||e); }
-      try{ await refresh(); }catch(e){ dbg('refresh ERR', e?.message||e); }
-      if (cameBack) history.replaceState({}, '', REDIRECT_URL);
-    }
-  })();
-
-  /* Auth buttons */
-  $('btnMagic').onclick = async ()=>{
-    const email = $('email').value.trim(); if(!email) return alert('Enter email');
-    const r = await raceTimeout('auth.signInWithOtp', supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } }), 6000);
-    dbg('signInWithOtp ->', r._timeout?'TIMEOUT': r._err?('ERR:'+ (r.error?.message||r.error)) : 'OK');
-    if(r._err) alert(r.error?.message||String(r.error));
-    if(!r._err && !r._timeout) alert('Check your email for the sign-in link.');
-  };
-  $('btnGoogle').onclick = async ()=>{
-    const r = await raceTimeout('auth.signInWithOAuth', supa.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: REDIRECT_URL, queryParams:{ prompt:'select_account' } } }), 6000);
-    dbg('signInWithOAuth ->', r._timeout?'TIMEOUT': r._err?('ERR:'+ (r.error?.message||r.error)) : 'OK');
-    if(r._err) alert(r.error?.message||String(r.error));
-  };
-
-  $('btnReset').onclick = async ()=>{
-    dbg('pre-login reset'); await raceTimeout('auth.signOut(pre)', supa.auth.signOut(), 3000);
-    localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
-  };
-  $('btnInAppReset').onclick = async ()=>{
-    dbg('in-app reset clicked'); await raceTimeout('auth.signOut(in-app)', supa.auth.signOut(), 3000);
-    localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
-  };
-  $('btnSignOut').onclick = async ()=>{
-    dbg('signOut() clicked'); await raceTimeout('auth.signOut(button)', supa.auth.signOut(), 3000);
-    localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
-  };
-
-  supa.auth.onAuthStateChange((event, session)=>{ dbg('onAuthStateChange', {event, hasSession:!!session}); });
-
-  /* Debug toolbar actions */
-  $('btnForceSession').onclick = async ()=>{
-    const s = await raceTimeout('auth.getSession', supa.auth.getSession(), 4000);
-    const u = await raceTimeout('auth.getUser', supa.auth.getUser(), 4000);
-    dbg('getSession ->', s._timeout?'TIMEOUT': JSON.stringify(s.value));
-    dbg('getUser ->', u._timeout?'TIMEOUT': JSON.stringify(u.value));
-  };
-  $('btnPermRead').onclick = async ()=>{
-    dbg('Permissions READ test…');
-    const v = await raceTimeout('read view', supa.from('v_catalogue_with_owner').select('*').limit(1), 6000);
-    dbg('read view ->', v._timeout?'TIMEOUT': v._err?('ERR:'+ (v.error?.message||v.error)): ('OK count='+(v.value.data?.length||0)));
-    const c = await raceTimeout('read table', supa.from('catalogue').select('*').limit(1), 6000);
-    dbg('read table ->', c._timeout?'TIMEOUT': c._err?('ERR:'+ (c.error?.message||c.error)): ('OK count='+(c.value.data?.length||0)));
-  };
-  $('btnPermWrite').onclick = async ()=>{
-    dbg('Permissions WRITE probe…');
-    const barcode = 'DEBUG-' + Math.random().toString(36).slice(2,6);
-    const ins = await raceTimeout('insert probe', supa.from('catalogue').insert({
-      barcode, name:'probe', unit:'ea', pack_size:'1',
-      ...(profile?.id?{user_id:profile.id}:{})
-    }), 6000);
-    if(ins._timeout){ dbg('insert probe -> TIMEOUT'); }
-    else if(ins._err){ dbg('insert probe -> ERR:', ins.error.message||String(ins.error)); }
-    else { dbg('insert probe -> OK (no representation requested)'); }
-  };
-  $('btnRawProbe').onclick = async ()=>{
-    dbg('Raw REST probe…');
-    const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
-    const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id,barcode,name&limit=1`;
-    try{
-      const res = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } });
-      const text = await res.text();
-      dbg('raw probe -> status', res.status, 'body:', text.slice(0,1000));
-    }catch(e){ dbg('raw probe ERR', e.message||String(e)); }
-  };
-  $('btnDump').onclick = async ()=>{
-    const s = await supa.auth.getSession(); const u = await supa.auth.getUser();
-    dbg('dump session', s); dbg('dump user', u); dbg('localStorage keys', Object.keys(localStorage)); dbg('sessionStorage keys', Object.keys(sessionStorage));
-  };
-  $('btnNuke').onclick = async ()=>{
-    await raceTimeout('auth.signOut(nuke)', supa.auth.signOut(), 3000);
-    localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
-  };
-
-  /* Profile / data */
-  async function loadProfile(){
-    const u = await raceTimeout('auth.getUser(profile)', supa.auth.getUser(), 4000);
-    if(u._timeout || u._err || !u.value.data?.user){ dbg('getUser fail', u); return; }
-    const user = u.value.data.user;
-
-    // Try to read profile row; if it doesn't exist, create a minimal one
-    let pr = await raceTimeout('profiles.select', supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(), 6000);
-    if(!pr._timeout && !pr._err && !pr.value.data){
-      await raceTimeout('profiles.upsert', supa.from('profiles').upsert({ id:user.id, email:user.email }), 6000);
-      pr = await raceTimeout('profiles.select#2', supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(), 6000);
-    }
-    if(pr._timeout){ dbg('profiles.select -> TIMEOUT'); return; }
-    if(pr._err){ dbg('profiles.select -> ERR', pr.error.message||String(pr.error)); return; }
-
-    profile = pr.value.data || { id: user.id, email: user.email, role: 'user', org_id: null };
-    roleBadge.textContent = profile.role||'user'; roleBadge.classList.remove('hidden');
-    userEmail.textContent = profile.email||''; userEmail.classList.remove('hidden');
-    orgHint.textContent = profile.org_id ? `Org: ${String(profile.org_id).slice(0,8)}…` : 'Org: —';
+  async function onSignedIn(user) {
+    authCard.classList.add('hidden'); app.classList.remove('hidden');
+    // Ensure profile exists; policies now allow self insert/select
+    const pr = await supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle();
+    if (!pr.data) { await supa.from('profiles').upsert({ id:user.id, email:user.email }); }
+    const p2 = pr.data || { id:user.id, email:user.email, role:'user', org_id:null };
+    profile = p2; isAdmin = p2.role === 'admin';
+    userEmail.textContent = p2.email || 'signed in'; userEmail.classList.remove('hidden');
+    roleBadge.textContent = isAdmin ? 'Admin' : 'User'; roleBadge.classList.remove('hidden');
+    orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
+    chkAll.disabled = !isAdmin; btnExport.disabled = false; lblImport.classList.toggle('hidden', !isAdmin);
+    await refresh();
   }
 
+  // Auth buttons
+  $('btnMagic').onclick = async ()=>{
+    const email = $('email').value.trim(); if(!email) return alert('Enter email');
+    const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } });
+    if (error) return alert(error.message);
+    alert('Check your email for the sign-in link.');
+  };
+  $('btnGoogle').onclick = async ()=>{
+    const { error } = await supa.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: REDIRECT_URL, queryParams:{ prompt:'select_account' } } });
+    if (error) alert(error.message);
+  };
+  $('btnReset').onclick = async ()=>{ await supa.auth.signOut(); localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL); };
+  $('btnInAppReset').onclick = async ()=>{ await supa.auth.signOut(); localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL); };
+  $('btnSignOut').onclick = async ()=>{ await supa.auth.signOut(); localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL); };
+
+  // Scanner
+  const scanModal = $('scanModal'); const scanVideo = $('scanVideo'); const btnScan = $('btnScan'); const btnScanClose=$('btnScanClose');
+  let stream=null, detector=null, scanning=false, scanRAF=null;
+
+  btnScan.onclick = async ()=>{
+    scanModal.classList.remove('hidden');
+    try {
+      if ('BarcodeDetector' in window) {
+        if (!detector) detector = new window.BarcodeDetector({ formats: ['ean_13','ean_8','code_128','upc_a','upc_e','code_39','itf'] });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' }, audio:false });
+        scanVideo.srcObject = stream; await scanVideo.play();
+        scanning = true; tickScan();
+      } else {
+        alert('BarcodeDetector is not supported on this browser/device. Please type the barcode manually.');
+      }
+    } catch (e) {
+      alert('Camera access failed. Type the barcode manually.'); dbg('scan start err', e.message||e);
+    }
+  };
+  btnScanClose.onclick = stopScan;
+  function stopScan(){
+    scanning=false; if (scanRAF) cancelAnimationFrame(scanRAF);
+    if (scanVideo) { try{ scanVideo.pause(); }catch{} }
+    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    scanModal.classList.add('hidden');
+  }
+  async function tickScan(){
+    if (!scanning) return;
+    try{
+      const codes = await detector.detect(scanVideo);
+      if (codes && codes.length>0) {
+        const code = codes[0].rawValue || codes[0].displayValue;
+        if (code) { inBarcode.value = code; stopScan(); }
+      }
+    }catch(e){ /* ignore per-frame errors */ }
+    scanRAF = requestAnimationFrame(tickScan);
+  }
+
+  // Photo input
+  inPhoto.onchange = () => { photoName.textContent = inPhoto.files?.[0]?.name || ''; };
+
+  async function uploadPhoto(file, itemId) {
+    if (!file) return null;
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${profile?.id || 'anon'}/${itemId}_${Date.now()}.${ext}`;
+    const up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, { upsert:false });
+    if (up.error) { alert('Photo upload failed: '+up.error.message); return null; }
+    const pub = supa.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    return pub?.data?.publicUrl || null;
+  }
+
+  // Save / Upsert (now returns rows)
+  $('btnAdd').onclick = async ()=>{
+    const barcode = inBarcode.value.trim();
+    const name    = inName.value.trim();
+    const unit    = inUnit.value.trim() || null;
+    const pack    = inPack.value.trim() || null;
+    if (!barcode) { alert('Barcode required'); return; }
+
+    const cur = await supa.auth.getUser();
+    const user = cur.data?.user; if (!user) return alert('Not signed in');
+
+    const lookup = await supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle();
+    if (lookup.error) { return alert('Lookup failed: '+lookup.error.message); }
+
+    const base = { barcode, unit, pack_size:pack, user_id:user.id };
+    if (!lookup.data && !name) { return alert('Name required for new items'); }
+    if (name) base.name = name;
+
+    let photo_url = null;
+    if (inPhoto.files?.[0]) {
+      // if inserting, generate a temp id for filename, final row id comes after insert
+      const tempId = lookup.data?.id || crypto.randomUUID();
+      photo_url = await uploadPhoto(inPhoto.files[0], tempId);
+      if (photo_url) base.photo_url = photo_url;
+    }
+
+    if (lookup.data) {
+      const upd = await supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single();
+      if (upd.error) return alert('Update failed: '+upd.error.message);
+      dbg('update -> OK', upd.data?.id);
+    } else {
+      const ins = await supa.from('catalogue').insert(base).select().single();
+      if (ins.error) return alert('Insert failed: '+ins.error.message);
+      dbg('insert -> OK', ins.data?.id);
+    }
+
+    // Clear form and refresh table
+    inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; inPhoto.value=''; photoName.textContent='';
+    await refresh();
+  };
+
+  // Fetch and render
   async function refresh(){
-    const v = await raceTimeout('view.select', supa.from('v_catalogue_with_owner').select('*').order('updated_at', {ascending:false}).limit(500), 8000);
-    if(v._timeout){ dbg('view.select -> TIMEOUT'); return; }
-    if(v._err){ dbg('view.select -> ERR', v.error.message||String(v.error)); return; }
-    rows = v.value.data||[];
+    const q = await supa.from('v_catalogue_with_owner').select('*').order('updated_at',{ascending:false}).limit(1000);
+    if (q.error) { if (DEBUG) dbg('view.select error', q.error.message||q.error); return; }
+    rows = q.data || [];
     render();
+  }
+
+  function editable(field, row) {
+    const val = row[field] ?? '';
+    const esc = String(val).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+    return `<input data-edit="${row.id}" data-field="${field}" value="${esc}" />`;
   }
 
   function render(){
     const q = ($('inSearch').value||'').toLowerCase();
     const data = !q ? rows : rows.filter(r => (r.name||'').toLowerCase().includes(q) || (r.barcode||'').toLowerCase().includes(q));
     tblBody.innerHTML='';
-    data.forEach(r=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML = `<td>${r.barcode||''}</td><td>${r.name||''}</td><td>${r.unit||''}</td><td>${r.pack_size||''}</td><td>${r.owner_email||''}</td>`;
+    for (const r of data) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.photo_url ? `<img src="${r.photo_url}" style="max-height:42px;border-radius:6px;border:1px solid rgba(255,255,255,.1)"/>` : ''}</td>
+        <td class="mono">${r.barcode||''}</td>
+        <td>${editable('name', r)}</td>
+        <td>${editable('unit', r)}</td>
+        <td>${editable('pack_size', r)}</td>
+        <td>${r.owner_email||''}</td>
+        <td>
+          <label class="file"><input type="file" accept="image/*" data-photo="${r.id}"/>Change photo</label>
+        </td>`;
       tblBody.appendChild(tr);
+    }
+    // wire inline edits
+    tblBody.querySelectorAll('input[data-edit]').forEach(inp=>{
+      inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ onInlineEdit(e); }});
+      inp.addEventListener('change', onInlineEdit);
+    });
+    // wire photo changes
+    tblBody.querySelectorAll('input[data-photo]').forEach(inp=>{
+      inp.addEventListener('change', onPhotoChange);
     });
   }
 
-  $('btnRefresh').onclick = refresh;
-  $('inSearch').addEventListener('input', render);
+  async function onInlineEdit(e){
+    const input = e.currentTarget;
+    const id = input.getAttribute('data-edit');
+    const field = input.getAttribute('data-field');
+    const value = input.value.trim() || null;
+    if (field === 'name' && (!value || value.length===0)) { alert('Name is required'); return render(); }
+    const payload={}; payload[field]=value;
+    const res = await supa.from('catalogue').update(payload).eq('id', id).select().single();
+    if (res.error) alert(res.error.message);
+    else dbg('inline edit OK', {id, field});
+  }
 
-  /* Save / Upsert (no representation on write) */
-  $('btnAdd').onclick = async ()=>{
-    const barcode = inBarcode.value.trim();
-    const name = inName.value.trim();
-    const unit = inUnit.value.trim()||null;
-    const pack = inPack.value.trim()||null;
-    dbg('btnAdd clicked', { barcode, name, unit, pack });
-    if(!barcode){ alert('Barcode required'); return; }
+  async function onPhotoChange(e){
+    const file = e.target.files?.[0]; if(!file) return;
+    const id = e.target.getAttribute('data-photo');
+    const url = await uploadPhoto(file, id);
+    if (!url) return;
+    const res = await supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single();
+    if (res.error) return alert(res.error.message);
+    await refresh();
+  }
 
-    const lookup = await raceTimeout('lookup by barcode', supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle(), 6000);
-    if(lookup._err){ dbg('lookup -> ERR', lookup.error.message||String(lookup.error)); alert('Lookup failed'); return; }
-
-    const payload = { barcode, ...(name?{name}:{}) , unit, pack_size:pack, ...(profile?.id?{user_id:profile.id}:{}) };
-
-    if (lookup.value && lookup.value.data) {
-      const upd = await raceTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', lookup.value.data.id), 8000);
-      if(upd._err){ dbg('update -> ERR', upd.error.message||String(upd.error)); alert('Update failed: '+(upd.error.message||upd.error)); return; }
-      dbg('update -> OK');
-    } else {
-      const ins = await raceTimeout('catalogue.insert', supa.from('catalogue').insert(payload), 8000);
-      if(ins._err){ dbg('insert -> ERR', ins.error.message||String(ins.error)); alert('Insert failed: '+(ins.error.message||ins.error)); return; }
-      dbg('insert -> OK');
+  // CSV export/import
+  $('btnExport').onclick = ()=>{
+    const header = ['barcode','name','unit','pack_size','owner_email'];
+    const lines = [header.join(',')];
+    for (const r of rows) {
+      const vals = [r.barcode||'', r.name||'', r.unit||'', r.pack_size||'', r.owner_email||'']
+        .map(v => `"${String(v).replace(/"/g,'""')}"`);
+      lines.push(vals.join(','));
     }
-    clearInputs();
+    const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'catalogue.csv'; a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  inImport.onchange = async (e)=>{
+    const file = e.target.files?.[0]; if(!file) return;
+    if (!isAdmin) { alert('Only admin can import.'); return; }
+    const txt = await file.text();
+    const [headerLine, ...rowsTxt] = txt.split(/\r?\n/).filter(Boolean);
+    const cols = headerLine.split(',').map(s=>s.replace(/^"|"$/g,''));
+    const idx = { barcode: cols.indexOf('barcode'), name: cols.indexOf('name'), unit: cols.indexOf('unit'), pack_size: cols.indexOf('pack_size') };
+    if (idx.barcode<0) return alert('CSV must include "barcode" column');
+    const cur = await supa.auth.getUser(); const user = cur.data?.user;
+    let ok=0, fail=0;
+    for (const line of rowsTxt) {
+      const parts = line.match(/("([^"]|"")*"|[^,]*)/g).filter((_,i)=>i%2===0)?.[0] ? line.split(',') : line.split(',');
+      const get = i => { const raw = parts[i]||''; return raw.replace(/^"|"$/g,'').replace(/""/g,'"'); };
+      const payload = { barcode: get(idx.barcode), user_id: user.id };
+      if (idx.name>=0) payload.name = get(idx.name)||null;
+      if (idx.unit>=0) payload.unit = get(idx.unit)||null;
+      if (idx.pack_size>=0) payload.pack_size = get(idx.pack_size)||null;
+      if (!payload.barcode) { fail++; continue; }
+      const up = await supa.from('catalogue').upsert(payload, { onConflict:'barcode' });
+      if (up.error) fail++; else ok++;
+    }
+    alert(`Import complete: ${ok} ok, ${fail} failed`);
     await refresh();
   };
 
-  function clearInputs(){ inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; }
+  // Toolbar
+  $('btnRefresh').onclick = refresh;
+  $('inSearch').addEventListener('input', render);
+  chkAll.addEventListener('change', ()=>{ /* Placeholder if you add org-sharing later */ refresh(); });
 
-})();</script>
+  // Debug toolbar actions
+  $('btnDbgRead').onclick = async ()=>{
+    dbg('READ view…');
+    const v = await supa.from('v_catalogue_with_owner').select('*').limit(1); dbg('view:', v.error?('ERR '+(v.error.message||v.error)):('OK count='+(v.data?.length||0)));
+    const t = await supa.from('catalogue').select('*').limit(1); dbg('table:', t.error?('ERR '+(t.error.message||t.error)):('OK count='+(t.data?.length||0)));
+  };
+  $('btnDbgWrite').onclick = async ()=>{
+    dbg('WRITE probe…');
+    const u = await supa.auth.getUser(); if (!u.data?.user) return dbg('no user');
+    const b = 'DEBUG-' + Math.random().toString(36).slice(2,6);
+    const ins = await supa.from('catalogue').insert({ barcode:b, name:'probe', unit:'ea', pack_size:'1', user_id:u.data.user.id }).select().single();
+    dbg(ins.error?('ERR '+(ins.error.message||ins.error)):`OK id=${ins.data?.id}`);
+  };
+  $('btnDbgRaw').onclick = async ()=>{
+    dbg('RAW probe…');
+    const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
+    const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id,barcode,name&limit=1`;
+    try{
+      const res = await fetch(url, { headers:{ apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } });
+      const text = await res.text(); dbg('status', res.status, 'body', text);
+    }catch(e){ dbg('fetch ERR', e.message||String(e)); }
+  };
+
+  // Start
+  if (DEBUG) { dbg('Page load. hasReturn=', location.search.includes('?code='), 'href=', location.href); }
+  boot();
+
+})();
+</script>
 </body>
 </html>
