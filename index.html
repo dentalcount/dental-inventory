@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Dental Inventory — Timeout Debug</title>
+<title>Dental Inventory</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
 <style>
@@ -28,7 +28,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1 class="flex" style="display:flex;justify-content:space-between;align-items:center">
+  <h1 style="display:flex;justify-content:space-between;align-items:center">
     <span>Dental Inventory <span id="roleBadge" class="badge hidden"></span></span>
     <span style="display:flex;gap:8px;align-items:center">
       <span id="userEmail" class="badge hidden"></span>
@@ -130,17 +130,18 @@
   window.addEventListener('unhandledrejection', e=>dbg('unhandledrejection', e.reason?.message || String(e.reason)));
 
   /* === Promise.race timeout that RETURNS === */
-  async function raceTimeout(label, promise, ms=5000) {
+  async function raceTimeout(label, promise, ms=6000) {
     let finished = false;
     const timed = new Promise(res=>setTimeout(()=>{ if(!finished){ dbg(`TIMEOUT(${label}): ${ms}ms`); res({ _timeout:true, label }); } }, ms));
-    const result = await Promise.race([ promise.then(v=>({_ok:true, value:v})).catch(e=>({_err:true, error:e})), timed ]);
+    const wrapped = promise.then(v=>({_ok:true, value:v})).catch(e=>({_err:true, error:e}));
+    const result = await Promise.race([ wrapped, timed ]);
     finished = true;
     return result;
   }
 
-  /* Create client */
+  /* Create client (expose for console) */
   dbg('Creating client…');
-  const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  const supa = window.supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
   });
 
@@ -152,7 +153,7 @@
 
   let profile=null, rows=[];
 
-  $('btnShowDebug').onclick=()=>{ const now=panel.classList.contains('hidden'); showPanel(now); };
+  $('btnShowDebug').onclick = () => { const now=panel.classList.contains('hidden'); showPanel(now); };
 
   /* Post-return poll */
   (async()=>{
@@ -187,18 +188,15 @@
   };
 
   $('btnReset').onclick = async ()=>{
-    dbg('pre-login reset');
-    await raceTimeout('auth.signOut(pre)', supa.auth.signOut(), 3000);
+    dbg('pre-login reset'); await raceTimeout('auth.signOut(pre)', supa.auth.signOut(), 3000);
     localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
   };
   $('btnInAppReset').onclick = async ()=>{
-    dbg('in-app reset clicked');
-    await raceTimeout('auth.signOut(in-app)', supa.auth.signOut(), 3000);
+    dbg('in-app reset clicked'); await raceTimeout('auth.signOut(in-app)', supa.auth.signOut(), 3000);
     localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
   };
   $('btnSignOut').onclick = async ()=>{
-    dbg('signOut() clicked');
-    await raceTimeout('auth.signOut(button)', supa.auth.signOut(), 3000);
+    dbg('signOut() clicked'); await raceTimeout('auth.signOut(button)', supa.auth.signOut(), 3000);
     localStorage.clear(); sessionStorage.clear(); location.replace(REDIRECT_URL);
   };
 
@@ -223,23 +221,18 @@
     const barcode = 'DEBUG-' + Math.random().toString(36).slice(2,6);
     const ins = await raceTimeout('insert probe', supa.from('catalogue').insert({
       barcode, name:'probe', unit:'ea', pack_size:'1',
-      ...(profile?.id?{user_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{})
-+   }), 6000);
+      ...(profile?.id?{user_id:profile.id}:{})
+    }), 6000);
     if(ins._timeout){ dbg('insert probe -> TIMEOUT'); }
     else if(ins._err){ dbg('insert probe -> ERR:', ins.error.message||String(ins.error)); }
-    else if(ins.value?.data?.id){
-      dbg('insert probe -> OK id=', ins.value.data.id);
-      await raceTimeout('delete probe', supa.from('catalogue').delete().eq('id', ins.value.data.id), 4000);
-    } else {
-      dbg('insert probe -> OK but no readable row (RLS SELECT blocked)');
-    }
+    else { dbg('insert probe -> OK (no representation requested)'); }
   };
   $('btnRawProbe').onclick = async ()=>{
     dbg('Raw REST probe…');
     const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
     const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id,barcode,name&limit=1`;
     try{
-      const res = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}`, 'X-Client-Info':'raw-probe' } });
+      const res = await fetch(url, { headers: { apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } });
       const text = await res.text();
       dbg('raw probe -> status', res.status, 'body:', text.slice(0,1000));
     }catch(e){ dbg('raw probe ERR', e.message||String(e)); }
@@ -258,9 +251,16 @@
     const u = await raceTimeout('auth.getUser(profile)', supa.auth.getUser(), 4000);
     if(u._timeout || u._err || !u.value.data?.user){ dbg('getUser fail', u); return; }
     const user = u.value.data.user;
-    const pr = await raceTimeout('profiles.select', supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(), 6000);
+
+    // Try to read profile row; if it doesn't exist, create a minimal one
+    let pr = await raceTimeout('profiles.select', supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(), 6000);
+    if(!pr._timeout && !pr._err && !pr.value.data){
+      await raceTimeout('profiles.upsert', supa.from('profiles').upsert({ id:user.id, email:user.email }), 6000);
+      pr = await raceTimeout('profiles.select#2', supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(), 6000);
+    }
     if(pr._timeout){ dbg('profiles.select -> TIMEOUT'); return; }
     if(pr._err){ dbg('profiles.select -> ERR', pr.error.message||String(pr.error)); return; }
+
     profile = pr.value.data || { id: user.id, email: user.email, role: 'user', org_id: null };
     roleBadge.textContent = profile.role||'user'; roleBadge.classList.remove('hidden');
     userEmail.textContent = profile.email||''; userEmail.classList.remove('hidden');
@@ -289,7 +289,7 @@
   $('btnRefresh').onclick = refresh;
   $('inSearch').addEventListener('input', render);
 
-  /* Save / Upsert with fallback REST call */
+  /* Save / Upsert (no representation on write) */
   $('btnAdd').onclick = async ()=>{
     const barcode = inBarcode.value.trim();
     const name = inName.value.trim();
@@ -297,62 +297,27 @@
     const pack = inPack.value.trim()||null;
     dbg('btnAdd clicked', { barcode, name, unit, pack });
     if(!barcode){ alert('Barcode required'); return; }
+
     const lookup = await raceTimeout('lookup by barcode', supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle(), 6000);
-    if(lookup._timeout){ dbg('lookup -> TIMEOUT'); }
     if(lookup._err){ dbg('lookup -> ERR', lookup.error.message||String(lookup.error)); alert('Lookup failed'); return; }
 
-    const payload = { barcode, ...(name?{name}:{}) , unit, pack_size:pack,
-      ...(profile?.id?{user_id:profile.id}:{}) , ...(profile?.org_id?{org_id:profile.org_id}:{})
-    };
+    const payload = { barcode, ...(name?{name}:{}) , unit, pack_size:pack, ...(profile?.id?{user_id:profile.id}:{}) };
 
-    if (lookup.value?.data) {
+    if (lookup.value && lookup.value.data) {
       const upd = await raceTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', lookup.value.data.id), 8000);
-      if(upd._timeout){ dbg('update -> TIMEOUT (will try REST fallback)'); await restUpdate(lookup.value.data.id, payload); }
-      else if(upd._err){ dbg('update -> ERR', upd.error.message||String(upd.error)); alert('Update failed: '+(upd.error.message||upd.error)); }
-      else { dbg('update -> OK'); await refresh(); }
+      if(upd._err){ dbg('update -> ERR', upd.error.message||String(upd.error)); alert('Update failed: '+(upd.error.message||upd.error)); return; }
+      dbg('update -> OK');
     } else {
       const ins = await raceTimeout('catalogue.insert', supa.from('catalogue').insert(payload), 8000);
-      if(ins._timeout){ dbg('insert -> TIMEOUT (will try REST fallback)'); await restInsert(payload); }
-      else if(ins._err){ dbg('insert -> ERR', ins.error.message||String(ins.error)); alert('Insert failed: '+(ins.error.message||ins.error)); }
-      else { dbg('insert -> OK'); clearInputs(); await refresh(); }
+      if(ins._err){ dbg('insert -> ERR', ins.error.message||String(ins.error)); alert('Insert failed: '+(ins.error.message||ins.error)); return; }
+      dbg('insert -> OK');
     }
+    clearInputs();
+    await refresh();
   };
 
   function clearInputs(){ inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; }
 
-  /* Direct REST fallbacks for clearer errors */
-  async function restInsert(payload){
-    const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
-    const url = `${SUPABASE_URL}/rest/v1/catalogue`;
-    try{
-      const res = await fetch(url, { method:'POST', headers:{
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${token||SUPABASE_ANON}`,
-        'Content-Type':'application/json',
-        Prefer: 'return=representation'
-      }, body: JSON.stringify(payload) });
-      const text = await res.text();
-      dbg('REST insert -> status', res.status, 'body', text.slice(0,1200));
-      if(res.ok){ clearInputs(); await refresh(); } else { alert('REST insert error: '+text); }
-    }catch(e){ dbg('REST insert fetch ERR', e.message||String(e)); }
-  }
-  async function restUpdate(id, payload){
-    const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
-    const url = `${SUPABASE_URL}/rest/v1/catalogue?id=eq.${encodeURIComponent(id)}`;
-    try{
-      const res = await fetch(url, { method:'PATCH', headers:{
-        apikey: SUPABASE_ANON,
-        Authorization: `Bearer ${token||SUPABASE_ANON}`,
-        'Content-Type':'application/json',
-        Prefer: 'return=representation'
-      }, body: JSON.stringify(payload) });
-      const text = await res.text();
-      dbg('REST update -> status', res.status, 'body', text.slice(0,1200));
-      if(res.ok){ await refresh(); } else { alert('REST update error: '+text); }
-    }catch(e){ dbg('REST update fetch ERR', e.message||String(e)); }
-  }
-
 })();</script>
 </body>
 </html>
-
