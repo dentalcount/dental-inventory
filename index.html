@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Dental Inventory — Debug</title>
+  <title>Dental Inventory — Deep Debug</title>
 
   <link rel="icon"
         href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
@@ -99,9 +99,6 @@
         <div><label>Photo (optional)</label><input id="inPhoto" type="file" accept="image/*" capture="environment"/></div>
         <div style="align-self:end"><button id="btnAdd" class="btn primary">Save / Upsert</button></div>
       </div>
-      <div id="photoPreviewWrap" class="flex hidden" style="margin-top:8px">
-        <img id="photoPreview" class="preview" alt="preview"/><span class="hint">Photo will upload on save.</span>
-      </div>
     </div>
 
     <div class="card">
@@ -133,8 +130,9 @@
   <div id="debugHead">
     <span class="chip">Auth/DB Debug</span>
     <button id="btnForceSession" class="btn alt" style="width:auto">Force Session Check</button>
-    <button id="btnPermRead" class="btn alt" style="width:auto">Permissions: Read</button>
-    <button id="btnPermWrite" class="btn alt" style="width:auto">Permissions: Write Probe</button>
+    <button id="btnPermRead" class="btn alt" style="width:auto">Perms: Read</button>
+    <button id="btnPermWrite" class="btn alt" style="width:auto">Perms: Write Probe</button>
+    <button id="btnRawProbe" class="btn alt" style="width:auto">Raw REST Probe</button>
     <button id="btnDump" class="btn alt" style="width:auto">Dump State</button>
     <button id="btnNuke" class="btn alt" style="width:auto">Nuke Storage</button>
     <span id="dbgStatus" class="hint" style="margin-left:auto"></span>
@@ -171,6 +169,18 @@
   function setStatus(s){ if(DEBUG){ dbgStatus.textContent = s; } }
   function storageOK(kind){ try{ const k='__t__'+Math.random(); (kind==='local'?localStorage:sessionStorage).setItem(k,'1'); (kind==='local'?localStorage:sessionStorage).removeItem(k); return true; }catch(e){ return false; } }
 
+  // TIMEOUT WRAPPER
+  async function withTimeout(label, p, ms=4000) {
+    let done=false;
+    const t = setTimeout(()=>{ if(!done) dbg(`TIMEOUT: ${label} (${ms}ms)`); }, ms);
+    try {
+      const res = await p;
+      return res;
+    } finally {
+      done=true; clearTimeout(t);
+    }
+  }
+
   if (DEBUG) {
     showPanel(true);
     dbgUrl.textContent = location.href;
@@ -203,8 +213,6 @@
   const inUnit = el('inUnit');
   const inPack = el('inPack');
   const inPhoto = el('inPhoto');
-  const photoPreviewWrap = el('photoPreviewWrap');
-  const photoPreview = el('photoPreview');
   const inSearch = el('inSearch');
   const tblBody = el('tblBody');
   const chkAll = el('chkAll');
@@ -223,52 +231,83 @@
     showPanel(now);
   };
 
-  // Debug actions
+  // ========== Debug actions ==========
   document.getElementById('btnForceSession').onclick = async () => {
     dbg('Force session check…');
-    const s = await supa.auth.getSession(); dbg('getSession()', s);
-    const u = await supa.auth.getUser(); dbg('getUser()', u);
+    const s = await withTimeout('auth.getSession', supa.auth.getSession());
+    dbg('getSession()', s);
+    const u = await withTimeout('auth.getUser', supa.auth.getUser());
+    dbg('getUser()', u);
     setStatus('Forced session checked');
     if (s?.data?.session?.user) { authCard.classList.add('hidden'); app.classList.remove('hidden'); }
   };
+
   document.getElementById('btnPermRead').onclick = async () => {
     dbg('Permissions READ test…');
-    const v = await supa.from('v_catalogue_with_owner').select('*').limit(1);
+    const v = await withTimeout('select view', supa.from('v_catalogue_with_owner').select('*').limit(1));
     dbg('v_catalogue_with_owner select', v);
-    const c = await supa.from('catalogue').select('*').limit(1);
+    const c = await withTimeout('select table', supa.from('catalogue').select('*').limit(1));
     dbg('catalogue select', c);
     setStatus('Read test done');
   };
+
   document.getElementById('btnPermWrite').onclick = async () => {
     dbg('Permissions WRITE probe…');
     const probeBarcode = 'DEBUG-PROBE-' + Math.random().toString(36).slice(2,8);
-    const ins = await supa.from('catalogue').insert({
+    const ins = await withTimeout('insert probe', supa.from('catalogue').insert({
       barcode: probeBarcode, name: 'debug probe', unit: 'ea', pack_size: '1',
       owner_id: profile?.id || null, org_id: profile?.org_id || null
-    }).select().single();
+    }).select().single());
     dbg('insert probe', ins);
     if (!ins.error && ins.data?.id) {
-      const del = await supa.from('catalogue').delete().eq('id', ins.data.id);
+      const del = await withTimeout('delete probe', supa.from('catalogue').delete().eq('id', ins.data.id));
       dbg('delete probe', del);
     }
     setStatus('Write probe done');
   };
+
+  document.getElementById('btnRawProbe').onclick = async () => {
+    dbg('Raw REST probe…');
+    const sess = await withTimeout('auth.getSession (for token)', supa.auth.getSession());
+    const token = sess?.data?.session?.access_token;
+    dbg('token present?', !!token);
+    const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id&limit=1`;
+    const t0 = performance.now();
+    try {
+      const res = await withTimeout('raw fetch', fetch(url, {
+        headers: {
+          apikey: SUPABASE_ANON,
+          Authorization: token ? `Bearer ${token}` : `Bearer ${SUPABASE_ANON}`,
+          'X-Client-Info': 'diag-probe'
+        }
+      }), 6000);
+      const dt = (performance.now() - t0).toFixed(0);
+      const text = await res.text();
+      dbg('raw probe result', { status: res.status, ms: dt, body: text.slice(0, 2000) });
+    } catch (e) {
+      dbg('raw probe error', { message: e.message || String(e) });
+    }
+  };
+
   document.getElementById('btnDump').onclick = async () => {
     dbg('Dumping state…');
     dbg('location.href', location.href);
     dbg('localStorage keys', Object.keys(localStorage));
     dbg('sessionStorage keys', Object.keys(sessionStorage));
-    const s = await supa.auth.getSession(); dbg('getSession()', s);
-    const u = await supa.auth.getUser(); dbg('getUser()', u);
+    const s = await withTimeout('auth.getSession dump', supa.auth.getSession());
+    dbg('getSession()', s);
+    const u = await withTimeout('auth.getUser dump', supa.auth.getUser());
+    dbg('getUser()', u);
   };
+
   document.getElementById('btnNuke').onclick = async () => {
     dbg('Nuking storages & signOut');
-    try { await supa.auth.signOut(); } catch (e){ dbg('signOut error', e.message||e); }
+    try { await withTimeout('auth.signOut (nuke)', supa.auth.signOut(), 4000); } catch (e){ dbg('signOut error', e.message||e); }
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
 
-  // Session arrival & initial render
+  // ===== Post-return session POLL =====
   (async () => {
     const cameBackWithCode = location.search.includes('?code=');
     dbg('Return handler start. hasReturn=', cameBackWithCode, 'href=', location.href);
@@ -276,14 +315,14 @@
     const deadline = start + 8000;
     let tick = 0;
 
-    let { data: { session } } = await supa.auth.getSession();
+    let { data: { session } } = await withTimeout('auth.getSession initial', supa.auth.getSession());
     dbg('Initial getSession -> has user?', !!session?.user);
 
     while (!session?.user && Date.now() < deadline) {
       tick++;
       setStatus(`Waiting for session… (${tick})`);
       await new Promise(r => setTimeout(r, 250));
-      ({ data: { session } } = await supa.auth.getSession());
+      ({ data: { session } } = await withTimeout(`auth.getSession poll ${tick}`, supa.auth.getSession()));
       dbg(`Poll ${tick}: has user?`, !!session?.user);
     }
 
@@ -301,57 +340,64 @@
     }
   })();
 
-  // AUTH UI
+  // ===== AUTH UI =====
+  const el = (id)=>document.getElementById(id);
   el('btnMagic').onclick = async () => {
     const email = el('email').value.trim();
     if (!email) return alert('Enter your email');
     dbg('signInWithOtp ->', email);
-    const { data, error } = await supa.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: REDIRECT_URL }
-    });
-    dbg('signInWithOtp result', { ok: !error, error: error?.message });
-    if (error) return alert(error.message);
+    const res = await withTimeout('auth.signInWithOtp', supa.auth.signInWithOtp({ email, options: { emailRedirectTo: REDIRECT_URL } }));
+    dbg('signInWithOtp result', res);
+    if (res.error) return alert(res.error.message);
     alert('Check your email for the sign-in link.');
   };
 
   el('btnGoogle').onclick = async () => {
     dbg('signInWithOAuth -> google');
-    const { data, error } = await supa.auth.signInWithOAuth({
+    const res = await withTimeout('auth.signInWithOAuth', supa.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: REDIRECT_URL, queryParams: { prompt: 'select_account' } }
-    });
-    dbg('signInWithOAuth result', { ok: !error, error: error?.message });
-    if (error) alert(error.message);
+    }), 6000);
+    dbg('signInWithOAuth result', res);
+    if (res.error) alert(res.error.message);
   };
 
   // Pre-login reset
   el('btnReset').onclick = async () => {
     dbg('pre-login reset: signOut + storage clear');
-    try { await supa.auth.signOut(); } catch (e){ dbg('signOut error', e.message||e); }
+    try { await withTimeout('auth.signOut (prelogin)', supa.auth.signOut(), 4000); } catch (e){ dbg('signOut error', e.message||e); }
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
 
-  // In-app reset + sign-out (hard reloads)
+  // In-app reset + sign-out
   el('btnInAppReset').onclick = async () => {
     dbg('in-app reset clicked');
-    try { await supa.auth.signOut(); } catch (e){ dbg('signOut error', e.message||e); }
+    try { await withTimeout('auth.signOut (in-app reset)', supa.auth.signOut(), 4000); } catch (e){ dbg('signOut error', e.message||e); }
     authCard.classList.remove('hidden'); app.classList.add('hidden');
     localStorage.clear(); sessionStorage.clear();
     location.replace(REDIRECT_URL);
   };
   el('btnSignOut').onclick = async () => {
     dbg('signOut() clicked — before getSession');
-    const before = await supa.auth.getSession(); dbg('session before signOut', before);
-    const res = await supa.auth.signOut(); dbg('signOut() result', res);
-    const after = await supa.auth.getSession(); dbg('session after signOut', after);
-    authCard.classList.remove('hidden'); app.classList.add('hidden');
-    // Hard reload to fully clear UI state
+    try {
+      const before = await withTimeout('auth.getSession before signOut', supa.auth.getSession(), 3000);
+      dbg('session before signOut', before);
+    } catch(e) { dbg('getSession before signOut timed out'); }
+    try {
+      const res = await withTimeout('auth.signOut (button)', supa.auth.signOut(), 4000);
+      dbg('signOut() result', res);
+    } catch(e) { dbg('signOut() timeout/error', e.message||String(e)); }
+    try {
+      const after = await withTimeout('auth.getSession after signOut', supa.auth.getSession(), 3000);
+      dbg('session after signOut', after);
+    } catch(e) { dbg('getSession after signOut timed out'); }
+    authCard.classList.remove('hidden');
+    app.classList.add('hidden');
     location.replace(REDIRECT_URL);
   };
 
-  // Auth listener
+  // ===== Auth listener =====
   supa.auth.onAuthStateChange(async (event, session) => {
     dbg('onAuthStateChange', { event, hasSession: !!session });
     if (session?.user) {
@@ -363,30 +409,30 @@
     }
   });
 
-  // Helpers
+  // ===== Helpers =====
   async function ensureProfileRow(user) {
     try {
-      const { data, error } = await supa.from('profiles').select('id,org_id').eq('id', user.id).maybeSingle();
+      const { data, error } = await withTimeout('profiles.exists', supa.from('profiles').select('id,org_id').eq('id', user.id).maybeSingle());
       if (error && error.code !== 'PGRST116') throw error;
       if (!data) {
         dbg('ensureProfileRow: inserting minimal row');
-        await supa.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
+        await withTimeout('profiles.upsert', supa.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' }));
       }
     } catch (e) { dbg('ensureProfileRow skipped', e?.message||e); }
   }
 
   async function loadProfile() {
-    const u = await supa.auth.getUser();
+    const u = await withTimeout('auth.getUser for profile', supa.auth.getUser());
     dbg('getUser()', u);
     const user = u?.data?.user;
     if (!user) return;
     await ensureProfileRow(user);
 
-    const { data, error } = await supa
+    const { data, error } = await withTimeout('profiles.select', supa
       .from('profiles')
       .select('id,email,role,org_id')
       .eq('id', user.id)
-      .single();
+      .single());
     dbg('profiles fetch', { ok: !error, error: error?.message, data });
     if (error) return;
 
@@ -398,23 +444,17 @@
     userEmailBadge.classList.remove('hidden');
     orgHint.textContent = `Org: ${String(profile.org_id||'').slice(0,8)}…`;
 
-    el('chkAll').disabled = !isAdmin;
+    chkAll.disabled = !isAdmin;
     btnExport.disabled = !isAdmin;
     lblImport.classList.toggle('hidden', !isAdmin);
   }
 
-  // Inventory
-  inPhoto.addEventListener('change', () => {
-    const f = inPhoto.files?.[0];
-    if (f) { photoPreview.src = URL.createObjectURL(f); photoPreviewWrap.classList.remove('hidden'); }
-    else { photoPreviewWrap.classList.add('hidden'); }
-  });
-
+  // ===== Inventory =====
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${profile?.id || 'anon'}/${itemId}_${Date.now()}.${ext}`;
-    const { data, error } = await supa.storage.from('product_photos').upload(path, file, { upsert: false });
+    const { data, error } = await withTimeout('storage.upload', supa.storage.from('product_photos').upload(path, file, { upsert: false }), 10000);
     dbg('uploadPhoto', { path, ok: !error, error: error?.message });
     if (error) { alert('Photo upload failed: ' + error.message); return null; }
     const pub = supa.storage.from('product_photos').getPublicUrl(path);
@@ -431,13 +471,8 @@
 
     if (!barcode) { alert('Barcode is required'); return; }
 
-    // Lookup existing
-    const existing = await supa
-      .from('catalogue')
-      .select('id,name')
-      .eq('barcode', barcode)
-      .limit(1)
-      .maybeSingle();
+    const existing = await withTimeout('catalogue.lookup', supa
+      .from('catalogue').select('id,name').eq('barcode', barcode).limit(1).maybeSingle());
     dbg('lookup existing', existing);
     if (existing.error) { alert('Lookup failed: ' + existing.error.message); return; }
 
@@ -447,7 +482,6 @@
     let photo_url = null;
     if (inPhoto.files?.[0]) { photo_url = await uploadPhoto(inPhoto.files[0], tmpId); }
 
-    // Include owner_id & org_id to satisfy typical RLS
     const payload = {
       barcode,
       ...(name ? { name } : {}),
@@ -461,9 +495,9 @@
 
     let resp;
     if (existing.data) {
-      resp = await supa.from('catalogue').update(payload).eq('id', existing.data.id).select().single();
+      resp = await withTimeout('catalogue.update', supa.from('catalogue').update(payload).eq('id', existing.data.id).select().single(), 8000);
     } else {
-      resp = await supa.from('catalogue').insert(payload).select().single();
+      resp = await withTimeout('catalogue.insert', supa.from('catalogue').insert(payload).select().single(), 8000);
     }
     dbg('upsert result', resp);
 
@@ -473,15 +507,15 @@
   };
 
   function clearInputs() {
-    inBarcode.value = ''; inName.value = ''; inUnit.value = ''; inPack.value = '';
-    inPhoto.value = ''; photoPreviewWrap.classList.add('hidden');
+    el('inBarcode').value = '';
+    el('inName').value = '';
+    el('inUnit').value = '';
+    el('inPack').value = '';
+    el('inPhoto').value = '';
   }
 
   async function fetchCatalogue() {
-    const v = await supa.from('v_catalogue_with_owner')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1000);
+    const v = await withTimeout('view.select', supa.from('v_catalogue_with_owner').select('*').order('updated_at', { ascending: false }).limit(1000), 8000);
     dbg('fetchCatalogue view', { count: v.data?.length || 0, error: v.error?.message });
     return v;
   }
@@ -496,7 +530,8 @@
   function render() {
     const q = inSearch.value.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter(r =>
-      (r.name||'').toLowerCase().includes(q) || (r.barcode||'').toLowerCase().includes(q)
+      (r.name||'').toLowerCase().includes(q) ||
+      (r.barcode||'').toLowerCase().includes(q)
     );
     const tbody = document.getElementById('tblBody');
     tbody.innerHTML = '';
@@ -540,10 +575,9 @@
     dbg('inline edit', { id, field, value });
     if (field === 'name' && (!value || value.length === 0)) { alert('Name is required.'); return render(); }
     const payload = {}; payload[field] = value;
-    // Include owner/org on updates too, if RLS needs them
     if (profile?.id) payload.owner_id = profile.id;
     if (profile?.org_id) payload.org_id = profile.org_id;
-    const res = await supa.from('catalogue').update(payload).eq('id', id);
+    const res = await withTimeout('catalogue.update (inline)', supa.from('catalogue').update(payload).eq('id', id), 8000);
     dbg('inline edit result', res);
     if (res.error) alert(res.error.message);
   }
@@ -557,7 +591,7 @@
     const payload = { photo_url: url };
     if (profile?.id) payload.owner_id = profile.id;
     if (profile?.org_id) payload.org_id = profile.org_id;
-    const res = await supa.from('catalogue').update(payload).eq('id', id);
+    const res = await withTimeout('catalogue.update (photo)', supa.from('catalogue').update(payload).eq('id', id), 8000);
     dbg('photo update result', res);
     if (res.error) return alert(res.error.message);
     await refresh();
