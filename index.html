@@ -21,6 +21,7 @@
   input,button,select{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid var(--border);background:#0d1526;color:#e5e7eb;outline:none}
   input:focus,select:focus{border-color:var(--accent)}
   .btn{cursor:pointer;border:none}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
   .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#022;font-weight:700}
   .btn.alt{background:#1f2937}
   .hidden{display:none!important}
@@ -166,15 +167,23 @@
   function ts(){ return new Date().toISOString().split('T')[1].replace('Z',''); }
   function dbg(...a){ console.log('[DBG]', ...a); if (DEBUG && logEl) { logEl.textContent += `[${ts()}] `+ a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ') + '\n'; } }
   function on(el, ev, fn){ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); }
+  function setBusy(btn, on, labelBusy='Working…', labelIdle){
+    if(!btn) return;
+    if(on){ btn.dataset._orig = btn.textContent; btn.disabled = true; btn.textContent = labelBusy; }
+    else { btn.disabled = false; btn.textContent = labelIdle || btn.dataset._orig || btn.textContent; }
+  }
+
+  // Global error hooks
+  window.addEventListener('error', e=>{ dbg('onerror', e.message, e.filename+':'+e.lineno+':'+e.colno); });
+  window.addEventListener('unhandledrejection', e=>{ dbg('unhandledrejection', e.reason?.message || String(e.reason)); });
 
   if (DEBUG) { $('debug')?.classList.remove('hidden'); if(dbgUrl) dbgUrl.textContent = location.href; }
   on($('btnShowDebug'), 'click', ()=> { $('debug')?.classList.remove('hidden'); dbg('UI btnShowDebug clicked'); });
 
-  // Global click tracer (helps when buttons appear “dead”)
+  // Global click tracer
   if (DEBUG) {
     window.addEventListener('click', (e)=>{
-      const id = e.target.id || '(no id)';
-      const btn = e.target.closest('button');
+      const id = e.target.id || '(no id)'; const btn = e.target.closest('button');
       dbg('CLICK', { id, tag: e.target.tagName, buttonId: btn?.id || null });
     }, { capture:true });
   }
@@ -189,7 +198,7 @@
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
   const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inPhoto=$('inPhoto'), photoName=$('photoName');
   const tblBody=$('tblBody'), chkAll=$('chkAll'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
-  const scanModal=$('scanModal'), scanVideo=$('scanVideo');
+  const scanModal=$('scanModal'), scanVideo=$('scanVideo'); const btnAdd=$('btnAdd');
 
   let profile=null, isAdmin=false, rows=[], stream=null, detector=null, scanning=false, scanRAF=null;
 
@@ -201,6 +210,7 @@
   }
 
   // Auth lifecycle
+  dbg('Page load. hasReturn=', location.search.includes('?code='), 'href=', location.href);
   async function boot() {
     const hasReturn = location.search.includes('?code=');
     dbg('Return handler start. hasReturn=', hasReturn, 'href=', location.href);
@@ -218,24 +228,25 @@
   async function onSignedIn(user){
     dbg('onSignedIn start', { userId: user.id });
     authCard.classList.add('hidden'); app.classList.remove('hidden');
-    // Ensure profile exists; your RLS now allows self insert/select
-    const pr = await supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle();
-    if (pr.error) dbg('profiles.select ERR', pr.error.message||pr.error);
-    if (!pr.data) {
-      dbg('profiles.upsert (create self profile)');
-      const up = await supa.from('profiles').upsert({ id:user.id, email:user.email }).select().single();
-      if (up.error) dbg('profiles.upsert ERR', up.error.message||up.error);
-    }
-    const p2 = pr.data || { id:user.id, email:user.email, role:'user', org_id:null };
-    profile = p2; isAdmin = p2.role === 'admin';
-    userEmail.textContent = p2.email || 'signed in'; userEmail.classList.remove('hidden');
-    roleBadge.textContent = isAdmin ? 'Admin' : 'User'; roleBadge.classList.remove('hidden');
-    orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
-    chkAll.disabled = !isAdmin; btnExport.disabled = false; lblImport.classList.toggle('hidden', !isAdmin);
-    await refresh();
+    try{
+      const pr = await supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle();
+      if (pr.error) dbg('profiles.select ERR', pr.error.message||pr.error);
+      if (!pr.data) {
+        dbg('profiles.upsert (create self profile)');
+        const up = await supa.from('profiles').upsert({ id:user.id, email:user.email }).select().single();
+        if (up.error) dbg('profiles.upsert ERR', up.error.message||up.error);
+      }
+      const p2 = pr.data || { id:user.id, email:user.email, role:'user', org_id:null };
+      profile = p2; isAdmin = p2.role === 'admin';
+      userEmail.textContent = p2.email || 'signed in'; userEmail.classList.remove('hidden');
+      roleBadge.textContent = isAdmin ? 'Admin' : 'User'; roleBadge.classList.remove('hidden');
+      orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
+      chkAll.disabled = !isAdmin; btnExport.disabled = false; lblImport.classList.toggle('hidden', !isAdmin);
+      await refresh();
+    }catch(e){ dbg('onSignedIn ERR', e.message||String(e)); }
   }
 
-  // Auth buttons (with explicit logs)
+  // Auth buttons
   on($('btnMagic'), 'click', async ()=>{
     dbg('btnMagic clicked'); const email = $('email').value.trim(); if(!email) return alert('Enter email');
     const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } });
@@ -276,9 +287,7 @@
       alert('Camera access failed. Type the barcode manually.'); dbg('scan start err', e.message||e);
     }
   });
-  on($('btnScanClose'), 'click', ()=>{
-    dbg('btnScanClose clicked'); stopScan();
-  });
+  on($('btnScanClose'), 'click', ()=>{ dbg('btnScanClose clicked'); stopScan(); });
   function stopScan(){
     scanning=false; if (scanRAF) cancelAnimationFrame(scanRAF);
     if (scanVideo) { try{ scanVideo.pause(); }catch{} }
@@ -293,7 +302,7 @@
         const code = codes[0].rawValue || codes[0].displayValue;
         if (code) { inBarcode.value = code; dbg('scan detected', code); stopScan(); }
       }
-    }catch(e){ /* per-frame errors ignored */ }
+    }catch(e){ /* ignore per-frame */ }
     scanRAF = requestAnimationFrame(tickScan);
   }
 
@@ -311,44 +320,64 @@
     return url;
   }
 
-  // Save / Upsert
-  on($('btnAdd'), 'click', async ()=>{
-    dbg('btnAdd clicked');
-    const barcode = inBarcode.value.trim();
-    const name    = inName.value.trim();
-    const unit    = inUnit.value.trim() || null;
-    const pack    = inPack.value.trim() || null;
-    if (!barcode) { alert('Barcode required'); dbg('btnAdd aborted: no barcode'); return; }
+  // Save / Upsert (deep debug)
+  on(btnAdd, 'click', async ()=>{
+    dbg('btnAdd clicked.');
+    setBusy(btnAdd, true, 'Saving…', 'Save / Upsert');
 
-    const cur = await supa.auth.getUser();
-    const user = cur.data?.user; if (!user) { alert('Not signed in'); dbg('btnAdd aborted: no user'); return; }
+    try{
+      const barcode = inBarcode.value.trim();
+      const name    = inName.value.trim();
+      const unit    = inUnit.value.trim() || null;
+      const pack    = inPack.value.trim() || null;
+      dbg('SAVE[1] inputs', { barcode, name, unit, pack, hasPhoto: !!(inPhoto.files?.[0]) });
 
-    const lookup = await supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle();
-    if (lookup.error) { dbg('lookup ERR', lookup.error.message||lookup.error); return alert('Lookup failed: '+lookup.error.message); }
+      if (!barcode) { alert('Barcode required'); dbg('SAVE[1] abort: no barcode'); return; }
 
-    const base = { barcode, unit, pack_size:pack, user_id:user.id };
-    if (!lookup.data && !name) { alert('Name required for new items'); dbg('btnAdd aborted: name required'); return; }
-    if (name) base.name = name;
+      const cur = await supa.auth.getUser();
+      const user = cur.data?.user;
+      dbg('SAVE[2] user', { hasUser: !!user, userId: user?.id });
+      if (!user) { alert('Not signed in'); return; }
 
-    // If photo provided, upload first; if inserting, use a temp id for filename
-    if (inPhoto.files?.[0]) {
-      const tempId = lookup.data?.id || crypto.randomUUID();
-      const photo_url = await uploadPhoto(inPhoto.files[0], tempId);
-      if (photo_url) base.photo_url = photo_url;
+      const lookup = await supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle();
+      dbg('SAVE[3] lookup', { err: !!lookup.error, found: !!lookup.data, id: lookup.data?.id });
+      if (lookup.error) { alert('Lookup failed: '+lookup.error.message); return; }
+
+      const base = { barcode, unit, pack_size:pack, user_id:user.id };
+      if (!lookup.data && !name) { alert('Name required for new items'); dbg('SAVE[3] abort: name required'); return; }
+      if (name) base.name = name;
+
+      if (inPhoto.files?.[0]) {
+        const tempId = lookup.data?.id || crypto.randomUUID();
+        dbg('SAVE[4] uploading photo…', { tempId });
+        const photo_url = await uploadPhoto(inPhoto.files[0], tempId);
+        dbg('SAVE[4] photo url', photo_url);
+        if (photo_url) base.photo_url = photo_url;
+      }
+
+      if (lookup.data) {
+        dbg('SAVE[5] updating', { id: lookup.data.id, base });
+        const upd = await supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single();
+        dbg('SAVE[5] update result', { err: !!upd.error, id: upd.data?.id });
+        if (upd.error) { alert('Update failed: '+upd.error.message); return; }
+      } else {
+        dbg('SAVE[5] inserting', base);
+        const ins = await supa.from('catalogue').insert(base).select().single();
+        dbg('SAVE[5] insert result', { err: !!ins.error, id: ins.data?.id });
+        if (ins.error) { alert('Insert failed: '+ins.error.message); return; }
+      }
+
+      inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; inPhoto.value=''; photoName.textContent='';
+      dbg('SAVE[6] cleared inputs; refreshing…');
+      await refresh();
+      dbg('SAVE[7] done');
+
+    }catch(e){
+      dbg('SAVE[ERR]', e.message||String(e));
+      alert('Save failed: '+(e.message||e));
+    }finally{
+      setBusy(btnAdd, false);
     }
-
-    if (lookup.data) {
-      const upd = await supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single();
-      if (upd.error) { dbg('update ERR', upd.error.message||upd.error); return alert('Update failed: '+upd.error.message); }
-      dbg('update OK', upd.data?.id);
-    } else {
-      const ins = await supa.from('catalogue').insert(base).select().single();
-      if (ins.error) { dbg('insert ERR', ins.error.message||ins.error); return alert('Insert failed: '+ins.error.message); }
-      dbg('insert OK', ins.data?.id);
-    }
-
-    inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; inPhoto.value=''; photoName.textContent='';
-    await refresh();
   });
 
   // Fetch & render
@@ -462,7 +491,7 @@
   on($('inSearch'), 'input', ()=>{ dbg('inSearch input'); render(); });
   on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); /* placeholder for org-sharing later */ refresh(); });
 
-  // Debug toolbar actions (hardened)
+  // Debug toolbar actions
   on($('btnDbgRead'), 'click', async ()=>{
     dbg('DEBUG: READ view…');
     const v = await supa.from('v_catalogue_with_owner').select('*').limit(1);
@@ -490,7 +519,6 @@
   });
 
   // Start
-  if (DEBUG) dbg('Page load. hasReturn=', location.search.includes('?code='), 'href=', location.href);
   boot();
 
 })();
