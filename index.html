@@ -4,13 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dental Inventory</title>
-
-<!-- Favicon (inline 🦷). Replace with <link rel="icon" href="favicon.ico"> if you add a file -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
-
-<!-- Supabase SDK -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
-
 <style>
   :root{--muted:#94a3b8;--text:#e5e7eb;--bg:#0b1220;--panel:#0c1426;--border:rgba(255,255,255,.10);--accent:#22d3ee}
   html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -33,16 +28,13 @@
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
   .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
-  /* Debug dock */
   #debug{position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px;z-index:40}
   #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
   #dbgBody{padding:8px}
   pre{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;margin:0}
-  /* Scanner modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
   .sheet{background:#0b1220;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:680px;width:92%}
   video{width:100%;max-height:300px;background:#000;border-radius:12px;border:1px solid var(--border)}
-  canvas{display:none}
   .hint{color:var(--muted);font-size:.85rem}
   .file{display:inline-block;padding:.5rem .7rem;border:1px dashed var(--border);border-radius:8px;background:#101830;cursor:pointer}
   .file input{display:none}
@@ -75,7 +67,6 @@
 
   <!-- App -->
   <div id="app" class="hidden">
-    <!-- Add / Scan -->
     <div class="card">
       <div class="row3">
         <div>
@@ -97,7 +88,6 @@
       </div>
     </div>
 
-    <!-- Catalogue -->
     <div class="card">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
@@ -128,10 +118,7 @@
       <button id="btnScanClose" class="btn alt" style="width:auto">Close</button>
     </div>
     <video id="scanVideo" playsinline></video>
-    <div class="hint" style="margin-top:6px">
-      Position the barcode within the frame. If scanning doesn’t start, your browser/device may not support the
-      <code>BarcodeDetector</code> API; you can still type the barcode manually.
-    </div>
+    <div class="hint" style="margin-top:6px">If scanning doesn’t start, type the barcode manually.</div>
   </div>
 </div>
 
@@ -162,16 +149,18 @@
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
   const DEBUG = qs.get('debug') === '1' || location.search.includes('?code=');
-  const logEl = $('log'), dbgUrl = $('dbgUrl'), dbgStatus = $('dbgStatus');
+  const logEl = $('log'), dbgUrl = $('dbgUrl');
 
-  function ts(){ return new Date().toISOString().split('T')[1].replace('Z',''); }
-  function dbg(...a){ console.log('[DBG]', ...a); if (DEBUG && logEl) { logEl.textContent += `[${ts()}] `+ a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ') + '\n'; } }
-  function on(el, ev, fn){ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); }
-  function setBusy(btn, on, labelBusy='Working…', labelIdle){
-    if(!btn) return;
-    if(on){ btn.dataset._orig = btn.textContent; btn.disabled = true; btn.textContent = labelBusy; }
-    else { btn.disabled = false; btn.textContent = labelIdle || btn.dataset._orig || btn.textContent; }
-  }
+  const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
+  const dbg = (...a)=>{ console.log('[DBG]', ...a); if(DEBUG&&logEl){ logEl.textContent += `[${ts()}] `+ a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ') + '\n'; } };
+  const on = (el, ev, fn)=>{ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); };
+  const setBusy = (btn,on,label='Working…',idle)=>{ if(!btn) return; if(on){ btn.dataset._t=btn.textContent; btn.disabled=true; btn.textContent=label; } else { btn.disabled=false; btn.textContent=idle||btn.dataset._t||btn.textContent; } };
+
+  // Promise race with timeout (prevents hangs)
+  const withTimeout = (p, ms, tag) => Promise.race([
+    p,
+    new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms))
+  ]);
 
   // Global error hooks
   window.addEventListener('error', e=>{ dbg('onerror', e.message, e.filename+':'+e.lineno+':'+e.colno); });
@@ -179,8 +168,6 @@
 
   if (DEBUG) { $('debug')?.classList.remove('hidden'); if(dbgUrl) dbgUrl.textContent = location.href; }
   on($('btnShowDebug'), 'click', ()=> { $('debug')?.classList.remove('hidden'); dbg('UI btnShowDebug clicked'); });
-
-  // Global click tracer
   if (DEBUG) {
     window.addEventListener('click', (e)=>{
       const id = e.target.id || '(no id)'; const btn = e.target.closest('button');
@@ -200,40 +187,55 @@
   const tblBody=$('tblBody'), chkAll=$('chkAll'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
   const scanModal=$('scanModal'), scanVideo=$('scanVideo'); const btnAdd=$('btnAdd');
 
+  // Session cache (critical change)
+  let currentUser = null;   // { id, email, ... }
   let profile=null, isAdmin=false, rows=[], stream=null, detector=null, scanning=false, scanRAF=null;
 
-  // Overlay kill switch (prevents invisible modal blocking clicks after redirect)
   function killOverlays(){
     if (scanModal) scanModal.classList.add('hidden');
     if (scanVideo && !scanVideo.paused) { try { scanVideo.pause(); } catch{} }
     if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
   }
 
-  // Auth lifecycle
   dbg('Page load. hasReturn=', location.search.includes('?code='), 'href=', location.href);
+
   async function boot() {
     const hasReturn = location.search.includes('?code=');
     dbg('Return handler start. hasReturn=', hasReturn, 'href=', location.href);
     killOverlays();
-    const { data: { session } } = await supa.auth.getSession();
+    const { data: { session } } = await withTimeout(supa.auth.getSession(), 3000, 'getSession@boot');
     dbg('Initial getSession -> has user?', !!session?.user);
-    if (session?.user) { await onSignedIn(session.user); if (hasReturn) history.replaceState({}, '', REDIRECT_URL); }
+    if (session?.user) {
+      currentUser = session.user;
+      await onSignedIn(session.user);
+      if (hasReturn) history.replaceState({}, '', REDIRECT_URL);
+    }
   }
 
   supa.auth.onAuthStateChange(async (event, session) => {
     dbg('onAuthStateChange', { event, hasSession: !!session });
-    if (session?.user) await onSignedIn(session.user);
+    if (session?.user) {
+      currentUser = session.user;  // update cache immediately
+      await onSignedIn(session.user);
+    }
   });
 
   async function onSignedIn(user){
     dbg('onSignedIn start', { userId: user.id });
+    currentUser = user; // ensure cache
     authCard.classList.add('hidden'); app.classList.remove('hidden');
     try{
-      const pr = await supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle();
+      const pr = await withTimeout(
+        supa.from('profiles').select('id,email,role,org_id').eq('id', user.id).maybeSingle(),
+        4000, 'profiles.select'
+      );
       if (pr.error) dbg('profiles.select ERR', pr.error.message||pr.error);
       if (!pr.data) {
         dbg('profiles.upsert (create self profile)');
-        const up = await supa.from('profiles').upsert({ id:user.id, email:user.email }).select().single();
+        const up = await withTimeout(
+          supa.from('profiles').upsert({ id:user.id, email:user.email }).select().single(),
+          4000, 'profiles.upsert'
+        );
         if (up.error) dbg('profiles.upsert ERR', up.error.message||up.error);
       }
       const p2 = pr.data || { id:user.id, email:user.email, role:'user', org_id:null };
@@ -262,9 +264,9 @@
 
   async function signOutAndReset(tag){
     dbg(tag,'clicked');
-    try{ await supa.auth.signOut(); }catch(e){ dbg('signOut ERR', e.message||e); }
-    try{ localStorage.clear(); sessionStorage.clear(); }catch{}
-    location.replace(REDIRECT_URL);
+    try { supa.auth.signOut(); } catch(e){ dbg('signOut ERR', e.message||e); } // fire-and-forget
+    try { localStorage.clear(); sessionStorage.clear(); } catch{}
+    location.replace(REDIRECT_URL); // redirect immediately; no await chain
   }
   on($('btnReset'), 'click', ()=>signOutAndReset('btnReset'));
   on($('btnInAppReset'), 'click', ()=>signOutAndReset('btnInAppReset'));
@@ -302,7 +304,7 @@
         const code = codes[0].rawValue || codes[0].displayValue;
         if (code) { inBarcode.value = code; dbg('scan detected', code); stopScan(); }
       }
-    }catch(e){ /* ignore per-frame */ }
+    }catch(e){ }
     scanRAF = requestAnimationFrame(tickScan);
   }
 
@@ -312,15 +314,15 @@
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${profile?.id || 'anon'}/${itemId}_${Date.now()}.${ext}`;
-    const up = await supa.storage.from(STORAGE_BUCKET).upload(path, file, { upsert:false });
+    const path = `${currentUser?.id || 'anon'}/${itemId}_${Date.now()}.${ext}`;
+    const up = await withTimeout(supa.storage.from(STORAGE_BUCKET).upload(path, file, { upsert:false }), 7000, 'storage.upload');
     if (up.error) { dbg('photo upload ERR', up.error.message||up.error); alert('Photo upload failed: '+up.error.message); return null; }
     const pub = supa.storage.from(STORAGE_BUCKET).getPublicUrl(path);
     const url = pub?.data?.publicUrl || null; dbg('photo uploaded url', url);
     return url;
   }
 
-  // Save / Upsert (deep debug)
+  // Save / Upsert (NO getUser await; uses cached currentUser)
   on(btnAdd, 'click', async ()=>{
     dbg('btnAdd clicked.');
     setBusy(btnAdd, true, 'Saving…', 'Save / Upsert');
@@ -332,23 +334,25 @@
       const pack    = inPack.value.trim() || null;
       dbg('SAVE[1] inputs', { barcode, name, unit, pack, hasPhoto: !!(inPhoto.files?.[0]) });
 
-      if (!barcode) { alert('Barcode required'); dbg('SAVE[1] abort: no barcode'); return; }
-
-      const cur = await supa.auth.getUser();
-      const user = cur.data?.user;
+      // Use cached user immediately
+      const user = currentUser;
       dbg('SAVE[2] user', { hasUser: !!user, userId: user?.id });
       if (!user) { alert('Not signed in'); return; }
+      if (!barcode) { alert('Barcode required'); return; }
 
-      const lookup = await supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle();
+      const lookup = await withTimeout(
+        supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle(),
+        5000, 'lookup'
+      );
       dbg('SAVE[3] lookup', { err: !!lookup.error, found: !!lookup.data, id: lookup.data?.id });
       if (lookup.error) { alert('Lookup failed: '+lookup.error.message); return; }
 
       const base = { barcode, unit, pack_size:pack, user_id:user.id };
-      if (!lookup.data && !name) { alert('Name required for new items'); dbg('SAVE[3] abort: name required'); return; }
+      if (!lookup.data && !name) { alert('Name required for new items'); dbg('SAVE abort: name required'); return; }
       if (name) base.name = name;
 
       if (inPhoto.files?.[0]) {
-        const tempId = lookup.data?.id || crypto.randomUUID();
+        const tempId = lookup.data?.id || (window.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()));
         dbg('SAVE[4] uploading photo…', { tempId });
         const photo_url = await uploadPhoto(inPhoto.files[0], tempId);
         dbg('SAVE[4] photo url', photo_url);
@@ -357,12 +361,18 @@
 
       if (lookup.data) {
         dbg('SAVE[5] updating', { id: lookup.data.id, base });
-        const upd = await supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single();
+        const upd = await withTimeout(
+          supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single(),
+          6000, 'update'
+        );
         dbg('SAVE[5] update result', { err: !!upd.error, id: upd.data?.id });
         if (upd.error) { alert('Update failed: '+upd.error.message); return; }
       } else {
         dbg('SAVE[5] inserting', base);
-        const ins = await supa.from('catalogue').insert(base).select().single();
+        const ins = await withTimeout(
+          supa.from('catalogue').insert(base).select().single(),
+          6000, 'insert'
+        );
         dbg('SAVE[5] insert result', { err: !!ins.error, id: ins.data?.id });
         if (ins.error) { alert('Insert failed: '+ins.error.message); return; }
       }
@@ -383,7 +393,10 @@
   // Fetch & render
   async function refresh(){
     dbg('refresh() start');
-    const q = await supa.from('v_catalogue_with_owner').select('*').order('updated_at',{ascending:false}).limit(1000);
+    const q = await withTimeout(
+      supa.from('v_catalogue_with_owner').select('*').order('updated_at',{ascending:false}).limit(1000),
+      6000, 'view.select'
+    );
     if (q.error) { dbg('view.select ERR', q.error.message||q.error); return; }
     rows = q.data || []; dbg('refresh() rows', rows.length);
     render();
@@ -430,7 +443,10 @@
     dbg('inlineEdit', { id, field, value });
     if (field === 'name' && (!value || value.length===0)) { alert('Name is required'); return render(); }
     const payload={}; payload[field]=value;
-    const res = await supa.from('catalogue').update(payload).eq('id', id).select().single();
+    const res = await withTimeout(
+      supa.from('catalogue').update(payload).eq('id', id).select().single(),
+      6000, 'inline.update'
+    );
     if (res.error) { dbg('inline edit ERR', res.error.message||res.error); alert(res.error.message); }
     else dbg('inline edit OK', {id, field});
   }
@@ -441,7 +457,10 @@
     dbg('photo change', { id, name:file.name });
     const url = await uploadPhoto(file, id);
     if (!url) return;
-    const res = await supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single();
+    const res = await withTimeout(
+      supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single(),
+      6000, 'photo.update'
+    );
     if (res.error) { dbg('photo update ERR', res.error.message||res.error); return alert(res.error.message); }
     dbg('photo update OK'); await refresh();
   }
@@ -470,7 +489,7 @@
     const cols = header.split(',').map(s=>s.replace(/^"|"$/g,''));
     const idx = { barcode: cols.indexOf('barcode'), name: cols.indexOf('name'), unit: cols.indexOf('unit'), pack_size: cols.indexOf('pack_size') };
     if (idx.barcode<0) return alert('CSV must include "barcode" column');
-    const cur = await supa.auth.getUser(); const user = cur.data?.user;
+    const user = currentUser;
     let ok=0, fail=0;
     for (const line of lines) {
       const parts = line.match(/("([^"]|"")*"|[^,]+)/g) || [];
@@ -480,7 +499,7 @@
       if (idx.unit>=0) payload.unit = unq(parts[idx.unit])||null;
       if (idx.pack_size>=0) payload.pack_size = unq(parts[idx.pack_size])||null;
       if (!payload.barcode) { fail++; continue; }
-      const up = await supa.from('catalogue').upsert(payload, { onConflict:'barcode' });
+      const up = await withTimeout(supa.from('catalogue').upsert(payload, { onConflict:'barcode' }), 6000, 'csv.upsert');
       if (up.error) { fail++; dbg('import row ERR', up.error.message||up.error, payload.barcode); } else ok++;
     }
     alert(`Import complete: ${ok} ok, ${fail} failed`); await refresh();
@@ -489,31 +508,35 @@
   // Toolbar
   on($('btnRefresh'), 'click', ()=>{ dbg('btnRefresh clicked'); refresh(); });
   on($('inSearch'), 'input', ()=>{ dbg('inSearch input'); render(); });
-  on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); /* placeholder for org-sharing later */ refresh(); });
+  on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); refresh(); });
 
-  // Debug toolbar actions
+  // Debug toolbar
   on($('btnDbgRead'), 'click', async ()=>{
     dbg('DEBUG: READ view…');
-    const v = await supa.from('v_catalogue_with_owner').select('*').limit(1);
+    const v = await withTimeout(supa.from('v_catalogue_with_owner').select('*').limit(1), 5000, 'dbg.read.view');
     dbg('view:', v.error ? ('ERR '+(v.error.message||v.error)) : ('OK count='+(v.data?.length||0)));
-    const t = await supa.from('catalogue').select('*').limit(1);
+    const t = await withTimeout(supa.from('catalogue').select('*').limit(1), 5000, 'dbg.read.table');
     dbg('table:', t.error ? ('ERR '+(t.error.message||t.error)) : ('OK count='+(t.data?.length||0)));
   });
 
   on($('btnDbgWrite'), 'click', async ()=>{
     dbg('DEBUG: WRITE probe…');
-    const u = await supa.auth.getUser(); if (!u.data?.user) return dbg('no user');
+    const user = currentUser; if (!user) return dbg('no user');
     const b = 'DEBUG-' + Math.random().toString(36).slice(2,6);
-    const ins = await supa.from('catalogue').insert({ barcode:b, name:'probe', unit:'ea', pack_size:'1', user_id:u.data.user.id }).select().single();
+    const ins = await withTimeout(
+      supa.from('catalogue').insert({ barcode:b, name:'probe', unit:'ea', pack_size:'1', user_id:user.id }).select().single(),
+      6000, 'dbg.write'
+    );
     dbg(ins.error ? ('ERR '+(ins.error.message||ins.error)) : `OK id=${ins.data?.id}`);
   });
 
   on($('btnDbgRaw'), 'click', async ()=>{
     dbg('DEBUG: RAW probe…');
-    const s = await supa.auth.getSession(); const token = s.data?.session?.access_token;
+    const s = await withTimeout(supa.auth.getSession(), 3000, 'dbg.session');
+    const token = s.data?.session?.access_token;
     const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id,barcode,name&limit=1`;
     try{
-      const res = await fetch(url, { headers:{ apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } });
+      const res = await withTimeout(fetch(url, { headers:{ apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } }), 6000, 'dbg.raw.fetch');
       const text = await res.text(); dbg('raw status', res.status, 'body', text);
     }catch(e){ dbg('raw fetch ERR', e.message||String(e)); }
   });
