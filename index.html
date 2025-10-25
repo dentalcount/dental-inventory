@@ -4,8 +4,13 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dental Inventory</title>
+
+<!-- Favicon (inline). Replace with: <link rel="icon" href="favicon.ico"> if you add a file -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
+
+<!-- Supabase SDK -->
 <script src="https://unpkg.com/@supabase/supabase-js@2.44.4/dist/umd/supabase.js"></script>
+
 <style>
   :root{--muted:#94a3b8;--text:#e5e7eb;--bg:#0b1220;--panel:#0c1426;--border:rgba(255,255,255,.10);--accent:#22d3ee}
   html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -28,10 +33,12 @@
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
   .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+  /* Debug dock */
   #debug{position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px;z-index:40}
   #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
   #dbgBody{padding:8px}
   pre{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;margin:0}
+  /* Scanner modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
   .sheet{background:#0b1220;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:680px;width:92%}
   video{width:100%;max-height:300px;background:#000;border-radius:12px;border:1px solid var(--border)}
@@ -67,6 +74,7 @@
 
   <!-- App -->
   <div id="app" class="hidden">
+    <!-- Add / Scan -->
     <div class="card">
       <div class="row3">
         <div>
@@ -88,6 +96,7 @@
       </div>
     </div>
 
+    <!-- Catalogue -->
     <div class="card">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
@@ -145,22 +154,33 @@
   const STORAGE_BUCKET = 'product_photos';
   /***************/
 
-  // Helpers & Debug
+  // Helpers & Debug (bullet-proof)
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
   const DEBUG = qs.get('debug') === '1' || location.search.includes('?code=');
   const logEl = $('log'), dbgUrl = $('dbgUrl');
 
   const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
-  const dbg = (...a)=>{ console.log('[DBG]', ...a); if(DEBUG&&logEl){ logEl.textContent += `[${ts()}] `+ a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ') + '\n'; } };
+  function dbg(...a){
+    try {
+      const parts = a.map(x=>{
+        try{
+          if (typeof x==='string') return x;
+          if (x instanceof Event) return `[Event:${x.type}]`;
+          return JSON.stringify(x, (_k,v)=> (v===window||v===document)?'[window/document]':v);
+        } catch {
+          try { return String(x); } catch { return '[unserializable]'; }
+        }
+      });
+      console.log('[DBG]', ...a);
+      if (DEBUG && logEl) logEl.textContent += `[${ts()}] ` + parts.join(' ') + '\n';
+    } catch (e) {
+      console.log('[DBG-FALLBACK]', ...a, '(dbg err:', e?.message, ')');
+    }
+  }
   const on = (el, ev, fn)=>{ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); };
   const setBusy = (btn,on,label='Working…',idle)=>{ if(!btn) return; if(on){ btn.dataset._t=btn.textContent; btn.disabled=true; btn.textContent=label; } else { btn.disabled=false; btn.textContent=idle||btn.dataset._t||btn.textContent; } };
-
-  // Promise race with timeout (prevents hangs)
-  const withTimeout = (p, ms, tag) => Promise.race([
-    p,
-    new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms))
-  ]);
+  const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms)) ]);
 
   // Global error hooks
   window.addEventListener('error', e=>{ dbg('onerror', e.message, e.filename+':'+e.lineno+':'+e.colno); });
@@ -185,12 +205,13 @@
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
   const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inPhoto=$('inPhoto'), photoName=$('photoName');
   const tblBody=$('tblBody'), chkAll=$('chkAll'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
-  const scanModal=$('scanModal'), scanVideo=$('scanVideo'); const btnAdd=$('btnAdd');
+  const scanModal=$('scanModal'), scanVideo=$('scanVideo'), btnAdd=$('btnAdd');
 
-  // Session cache (critical change)
-  let currentUser = null;   // { id, email, ... }
+  // Session cache
+  let currentUser = null;
   let profile=null, isAdmin=false, rows=[], stream=null, detector=null, scanning=false, scanRAF=null;
 
+  // Overlay kill switch
   function killOverlays(){
     if (scanModal) scanModal.classList.add('hidden');
     if (scanVideo && !scanVideo.paused) { try { scanVideo.pause(); } catch{} }
@@ -203,7 +224,8 @@
     const hasReturn = location.search.includes('?code=');
     dbg('Return handler start. hasReturn=', hasReturn, 'href=', location.href);
     killOverlays();
-    const { data: { session } } = await withTimeout(supa.auth.getSession(), 3000, 'getSession@boot');
+    const ses = await withTimeout(supa.auth.getSession(), 3000, 'getSession@boot');
+    const session = ses?.data?.session || null;
     dbg('Initial getSession -> has user?', !!session?.user);
     if (session?.user) {
       currentUser = session.user;
@@ -215,14 +237,14 @@
   supa.auth.onAuthStateChange(async (event, session) => {
     dbg('onAuthStateChange', { event, hasSession: !!session });
     if (session?.user) {
-      currentUser = session.user;  // update cache immediately
+      currentUser = session.user;
       await onSignedIn(session.user);
     }
   });
 
   async function onSignedIn(user){
     dbg('onSignedIn start', { userId: user.id });
-    currentUser = user; // ensure cache
+    currentUser = user;
     authCard.classList.add('hidden'); app.classList.remove('hidden');
     try{
       const pr = await withTimeout(
@@ -250,7 +272,8 @@
 
   // Auth buttons
   on($('btnMagic'), 'click', async ()=>{
-    dbg('btnMagic clicked'); const email = $('email').value.trim(); if(!email) return alert('Enter email');
+    dbg('btnMagic clicked');
+    const email = $('email').value.trim(); if(!email) return alert('Enter email');
     const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } });
     if (error) { dbg('signInWithOtp ERR', error.message||error); return alert(error.message); }
     alert('Check your email for the sign-in link.');
@@ -264,9 +287,9 @@
 
   async function signOutAndReset(tag){
     dbg(tag,'clicked');
-    try { supa.auth.signOut(); } catch(e){ dbg('signOut ERR', e.message||e); } // fire-and-forget
+    try { supa.auth.signOut(); } catch(e){ dbg('signOut ERR', e.message||e); }
     try { localStorage.clear(); sessionStorage.clear(); } catch{}
-    location.replace(REDIRECT_URL); // redirect immediately; no await chain
+    location.replace(REDIRECT_URL);
   }
   on($('btnReset'), 'click', ()=>signOutAndReset('btnReset'));
   on($('btnInAppReset'), 'click', ()=>signOutAndReset('btnInAppReset'));
@@ -304,7 +327,7 @@
         const code = codes[0].rawValue || codes[0].displayValue;
         if (code) { inBarcode.value = code; dbg('scan detected', code); stopScan(); }
       }
-    }catch(e){ }
+    }catch(e){ /* ignore per-frame */ }
     scanRAF = requestAnimationFrame(tickScan);
   }
 
@@ -322,7 +345,7 @@
     return url;
   }
 
-  // Save / Upsert (NO getUser await; uses cached currentUser)
+  // Save / Upsert (uses cached user; numbered logs)
   on(btnAdd, 'click', async ()=>{
     dbg('btnAdd clicked.');
     setBusy(btnAdd, true, 'Saving…', 'Save / Upsert');
@@ -333,9 +356,10 @@
       const unit    = inUnit.value.trim() || null;
       const pack    = inPack.value.trim() || null;
       dbg('SAVE[1] inputs', { barcode, name, unit, pack, hasPhoto: !!(inPhoto.files?.[0]) });
+      console.log('AFTER_SAVE1'); // non-throwing trace
 
-      // Use cached user immediately
       const user = currentUser;
+      console.log('HAVE_USER?', !!user, user && user.id);
       dbg('SAVE[2] user', { hasUser: !!user, userId: user?.id });
       if (!user) { alert('Not signed in'); return; }
       if (!barcode) { alert('Barcode required'); return; }
@@ -352,7 +376,7 @@
       if (name) base.name = name;
 
       if (inPhoto.files?.[0]) {
-        const tempId = lookup.data?.id || (window.crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()));
+        const tempId = lookup.data?.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()));
         dbg('SAVE[4] uploading photo…', { tempId });
         const photo_url = await uploadPhoto(inPhoto.files[0], tempId);
         dbg('SAVE[4] photo url', photo_url);
