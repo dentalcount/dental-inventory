@@ -102,9 +102,10 @@
         <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
         <button id="btnRefresh" class="btn">Refresh</button>
         <button id="btnExport" class="btn">Export CSV</button>
+        <!-- Admin-only controls -->
         <label id="lblImport" class="file hidden"><input id="inImport" type="file" accept=".csv"/>Import CSV (admin)</label>
-        <label class="hint" style="display:flex;gap:8px;align-items:center">
-          <input id="chkAll" type="checkbox" disabled/> View all users
+        <label id="viewAllWrap" class="file hidden" style="display:flex;gap:8px;align-items:center">
+          <input id="chkAll" type="checkbox"/> View all users
         </label>
         <span id="orgHint" class="badge"></span>
       </div>
@@ -204,7 +205,8 @@
   // DOM refs
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
   const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inPhoto=$('inPhoto'), photoName=$('photoName');
-  const tblBody=$('tblBody'), chkAll=$('chkAll'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
+  const tblBody=$('tblBody'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
+  const viewAllWrap=$('viewAllWrap'), chkAll=$('chkAll');
   const scanModal=$('scanModal'), scanVideo=$('scanVideo'), btnAdd=$('btnAdd');
 
   // Session cache
@@ -265,7 +267,12 @@
       userEmail.textContent = p2.email || 'signed in'; userEmail.classList.remove('hidden');
       roleBadge.textContent = isAdmin ? 'Admin' : 'User'; roleBadge.classList.remove('hidden');
       orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
-      chkAll.disabled = !isAdmin; btnExport.disabled = false; lblImport.classList.toggle('hidden', !isAdmin);
+
+      // Admin-only UI
+      btnExport.disabled = false;
+      lblImport.classList.toggle('hidden', !isAdmin);
+      if (viewAllWrap) viewAllWrap.classList.toggle('hidden', !isAdmin); // hidden for non-admins
+
       await refresh();
     }catch(e){ dbg('onSignedIn ERR', e.message||String(e)); }
   }
@@ -345,7 +352,7 @@
     return url;
   }
 
-  // Save / Upsert (uses cached user; numbered logs)
+  // Save / Upsert
   on(btnAdd, 'click', async ()=>{
     dbg('btnAdd clicked.');
     setBusy(btnAdd, true, 'Saving…', 'Save / Upsert');
@@ -356,7 +363,7 @@
       const unit    = inUnit.value.trim() || null;
       const pack    = inPack.value.trim() || null;
       dbg('SAVE[1] inputs', { barcode, name, unit, pack, hasPhoto: !!(inPhoto.files?.[0]) });
-      console.log('AFTER_SAVE1'); // non-throwing trace
+      console.log('AFTER_SAVE1');
 
       const user = currentUser;
       console.log('HAVE_USER?', !!user, user && user.id);
@@ -532,7 +539,7 @@
   // Toolbar
   on($('btnRefresh'), 'click', ()=>{ dbg('btnRefresh clicked'); refresh(); });
   on($('inSearch'), 'input', ()=>{ dbg('inSearch input'); render(); });
-  on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); refresh(); });
+  on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); /* Hook for future org-wide view */ refresh(); });
 
   // Debug toolbar
   on($('btnDbgRead'), 'click', async ()=>{
