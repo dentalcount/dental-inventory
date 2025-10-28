@@ -20,11 +20,15 @@
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   input,button,select{width:100%;padding:.7rem .8rem;border-radius:12px;border:1px solid var(--border);background:#0d1526;color:#e5e7eb;outline:none}
   input:focus,select:focus{border-color:var(--accent)}
+  input[type="date"]{color-scheme:dark}
   .btn{cursor:pointer;border:none}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
   .btn.primary{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#022;font-weight:700}
   .btn.alt{background:#1f2937}
   .hidden{display:none!important}
+  .tabs{display:flex;gap:8px;margin:8px 0 0}
+  .tab{padding:.5rem .8rem;border:1px solid var(--border);border-radius:999px;background:#101830;cursor:pointer}
+  .tab.active{background:linear-gradient(90deg,#00c2ff,#14f1d9);color:#022;font-weight:700}
   table{width:100%;border-collapse:separate;border-spacing:0 8px}
   th,td{padding:.6rem .55rem;text-align:left}
   thead th{font-size:.85rem;color:var(--muted)}
@@ -32,7 +36,7 @@
   tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
-  .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+  .mono{font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
   /* Debug dock */
   #debug{position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px;z-index:40}
   #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
@@ -74,49 +78,83 @@
 
   <!-- App -->
   <div id="app" class="hidden">
-    <!-- Add / Scan -->
-    <div class="card">
-      <div class="row3">
-        <div>
-          <div style="display:flex;gap:8px">
-            <input id="inBarcode" class="mono" placeholder="Scan or type barcode…"/>
-            <button id="btnScan" class="btn alt" style="width:auto">📷 Scan</button>
-          </div>
-        </div>
-        <div><input id="inName" placeholder="Item Name (required for new)"/></div>
-        <div><input id="inUnit" placeholder="Unit (e.g., box / pack / ea)"/></div>
-      </div>
-      <div class="row3" style="margin-top:8px">
-        <div><input id="inPack" placeholder="Pack size (e.g., x10 / 50pcs / 3g)"/></div>
-        <div>
-          <label class="file"><input id="inPhoto" type="file" accept="image/*" capture="environment"/>Upload Photo</label>
-          <span id="photoName" class="hint" style="margin-left:8px"></span>
-        </div>
-        <div style="align-self:end"><button id="btnAdd" class="btn primary">Save / Upsert</button></div>
-      </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button id="tabCatalogue" class="tab active">Catalogue</button>
+      <button id="tabReorder" class="tab">Re-Ordering</button>
     </div>
 
-    <!-- Catalogue -->
-    <div class="card">
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
-        <button id="btnRefresh" class="btn">Refresh</button>
-        <button id="btnExport" class="btn">Export CSV</button>
-        <!-- Admin-only controls -->
-        <label id="lblImport" class="file hidden"><input id="inImport" type="file" accept=".csv"/>Import CSV (admin)</label>
-        <label id="viewAllWrap" class="file hidden" style="display:flex;gap:8px;align-items:center">
-          <input id="chkAll" type="checkbox"/> View all users
-        </label>
-        <span id="orgHint" class="badge"></span>
+    <!-- PAGE: CATALOGUE -->
+    <section id="pageCatalogue">
+      <div class="card">
+        <div class="row3">
+          <div>
+            <div style="display:flex;gap:8px">
+              <input id="inBarcode" class="mono" placeholder="Scan or type barcode…"/>
+              <button id="btnScan" class="btn alt" style="width:auto">📷 Scan</button>
+            </div>
+          </div>
+          <div><input id="inName" placeholder="Item Name (required for new)"/></div>
+          <div><input id="inUnit" placeholder="Unit (e.g., box / pack / ea)"/></div>
+        </div>
+        <div class="row3" style="margin-top:8px">
+          <div><input id="inPack" placeholder="Pack size (e.g., x10 / 50pcs / 3g)"/></div>
+          <div><input id="inExpiry" type="date" placeholder="Expiry Date"/></div>
+          <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end">
+            <label class="file"><input id="inPhoto" type="file" accept="image/*" capture="environment"/>Upload Photo</label>
+            <span id="photoName" class="hint"></span>
+            <button id="btnAdd" class="btn primary">Save / Upsert</button>
+          </div>
+        </div>
       </div>
-      <div class="hint" style="margin-top:6px">Tip: click a field to edit inline. Press Enter to save.</div>
-      <div style="overflow:auto;margin-top:8px">
-        <table>
-          <thead><tr><th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Owner</th><th>Actions</th></tr></thead>
-          <tbody id="tblBody"></tbody>
-        </table>
+
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="inSearch" placeholder="Search name or barcode…" class="mono" style="flex:1 1 280px"/>
+          <button id="btnRefresh" class="btn">Refresh</button>
+          <button id="btnExport" class="btn">Export CSV</button>
+          <!-- Admin-only controls -->
+          <label id="lblImport" class="file hidden"><input id="inImport" type="file" accept=".csv"/>Import CSV (admin)</label>
+          <span id="orgHint" class="badge"></span>
+        </div>
+        <div class="hint" style="margin-top:6px">Tip: click a field to edit inline. Press Enter to save.</div>
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr>
+              <th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Expiry</th><th>Days</th><th>Owner</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="tblBody"></tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- PAGE: RE-ORDERING -->
+    <section id="pageReorder" class="hidden">
+      <div class="card">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label>Expiring within
+            <input id="reDays" type="number" min="1" value="60" style="width:90px;margin-left:6px"/> days
+          </label>
+          <label style="display:flex;gap:6px;align-items:center;margin-left:12px">
+            <input id="reShowExpired" type="checkbox"/> include already expired
+          </label>
+          <button id="btnFindExpiring" class="btn primary" style="width:auto">Find expiring</button>
+          <input id="reSearch" placeholder="Filter name/barcode…" class="mono" style="flex:1 1 240px"/>
+        </div>
+        <div class="hint" style="margin-top:6px">Shows items with an Expiry Date set that are due within the chosen window.</div>
+        <div style="overflow:auto;margin-top:8px">
+          <table>
+            <thead><tr>
+              <th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Expiry</th><th>Days</th><th>Owner</th>
+            </tr></thead>
+            <tbody id="tblExpiring"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </div>
 </div>
 
@@ -132,7 +170,7 @@
   </div>
 </div>
 
-<!-- Debug Panel -->
+<!-- Debug Panel (opens only with ?debug=1) -->
 <div id="debug" class="hidden">
   <div id="dbgHead">
     <button id="btnDbgRead" class="btn alt" style="width:auto">Perms: Read</button>
@@ -158,7 +196,8 @@
   // Helpers & Debug (bullet-proof)
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
-  const DEBUG = qs.get('debug') === '1' || location.search.includes('?code=');
+  // Debug is ONLY on when ?debug=1 (no longer auto-opens on OAuth return)
+  const DEBUG = qs.get('debug') === '1';
   const logEl = $('log'), dbgUrl = $('dbgUrl');
 
   const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
@@ -183,6 +222,23 @@
   const setBusy = (btn,on,label='Working…',idle)=>{ if(!btn) return; if(on){ btn.dataset._t=btn.textContent; btn.disabled=true; btn.textContent=label; } else { btn.disabled=false; btn.textContent=idle||btn.dataset._t||btn.textContent; } };
   const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms)) ]);
 
+  // Dates (local YYYY-MM-DD)
+  const toLocalDateStr = d=>{
+    const dt = (d instanceof Date)? d : new Date(d);
+    dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+    return dt.toISOString().slice(0,10);
+  };
+  const addDaysStr = (days)=>{
+    const dt = new Date(); dt.setDate(dt.getDate()+days); return toLocalDateStr(dt);
+  };
+  const todayStr = ()=> toLocalDateStr(new Date());
+  const diffDays = (dateStr)=>{
+    if (!dateStr) return null;
+    const a = new Date(toLocalDateStr(new Date())); // today local
+    const b = new Date(dateStr+'T00:00:00');
+    const ms = b - a; return Math.round(ms / 86400000);
+  };
+
   // Global error hooks
   window.addEventListener('error', e=>{ dbg('onerror', e.message, e.filename+':'+e.lineno+':'+e.colno); });
   window.addEventListener('unhandledrejection', e=>{ dbg('unhandledrejection', e.reason?.message || String(e.reason)); });
@@ -204,35 +260,25 @@
 
   // DOM refs
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
-  const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inPhoto=$('inPhoto'), photoName=$('photoName');
+  const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inExpiry=$('inExpiry'), inPhoto=$('inPhoto'), photoName=$('photoName');
   const tblBody=$('tblBody'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
-  const viewAllWrap=$('viewAllWrap'), chkAll=$('chkAll');
   const scanModal=$('scanModal'), scanVideo=$('scanVideo'), btnAdd=$('btnAdd');
+  const tabCatalogue=$('tabCatalogue'), tabReorder=$('tabReorder'), pageCatalogue=$('pageCatalogue'), pageReorder=$('pageReorder');
+  const btnFindExpiring=$('btnFindExpiring'), reDays=$('reDays'), reShowExpired=$('reShowExpired'), reSearch=$('reSearch'), tblExpiring=$('tblExpiring');
 
   // Session cache
   let currentUser = null;
-  let profile=null, isAdmin=false, rows=[], stream=null, detector=null, scanning=false, scanRAF=null;
+  let profile=null, isAdmin=false, rows=[]; // rows for catalogue
 
-  // Overlay kill switch
-  function killOverlays(){
-    if (scanModal) scanModal.classList.add('hidden');
-    if (scanVideo && !scanVideo.paused) { try { scanVideo.pause(); } catch{} }
-    if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  }
-
-  dbg('Page load. hasReturn=', location.search.includes('?code='), 'href=', location.href);
-
+  // Boot
+  dbg('Page load. href=', location.href);
   async function boot() {
-    const hasReturn = location.search.includes('?code=');
-    dbg('Return handler start. hasReturn=', hasReturn, 'href=', location.href);
-    killOverlays();
     const ses = await withTimeout(supa.auth.getSession(), 3000, 'getSession@boot');
     const session = ses?.data?.session || null;
     dbg('Initial getSession -> has user?', !!session?.user);
     if (session?.user) {
       currentUser = session.user;
       await onSignedIn(session.user);
-      if (hasReturn) history.replaceState({}, '', REDIRECT_URL);
     }
   }
 
@@ -267,13 +313,9 @@
       userEmail.textContent = p2.email || 'signed in'; userEmail.classList.remove('hidden');
       roleBadge.textContent = isAdmin ? 'Admin' : 'User'; roleBadge.classList.remove('hidden');
       orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
-
-      // Admin-only UI
-      btnExport.disabled = false;
       lblImport.classList.toggle('hidden', !isAdmin);
-      if (viewAllWrap) viewAllWrap.classList.toggle('hidden', !isAdmin); // hidden for non-admins
 
-      await refresh();
+      await refresh(); // initial load of catalogue
     }catch(e){ dbg('onSignedIn ERR', e.message||String(e)); }
   }
 
@@ -302,24 +344,31 @@
   on($('btnInAppReset'), 'click', ()=>signOutAndReset('btnInAppReset'));
   on($('btnSignOut'), 'click', ()=>signOutAndReset('btnSignOut'));
 
+  // Tabs
+  function activateTab(which){
+    tabCatalogue.classList.toggle('active', which==='cat');
+    tabReorder.classList.toggle('active', which==='reo');
+    pageCatalogue.classList.toggle('hidden', which!=='cat');
+    pageReorder.classList.toggle('hidden', which!=='reo');
+  }
+  on(tabCatalogue, 'click', ()=> activateTab('cat'));
+  on(tabReorder, 'click', ()=> activateTab('reo'));
+
   // Scanner
+  let stream=null, detector=null, scanning=false, scanRAF=null;
+  const scanModal=$('scanModal'), scanVideo=$('scanVideo');
   on($('btnScan'), 'click', async ()=>{
-    dbg('btnScan clicked');
     scanModal.classList.remove('hidden'); scanModal.setAttribute('aria-hidden','false');
-    try {
+    try{
       if ('BarcodeDetector' in window) {
         if (!detector) detector = new window.BarcodeDetector({ formats: ['ean_13','ean_8','code_128','upc_a','upc_e','code_39','itf'] });
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
         scanVideo.srcObject = stream; await scanVideo.play();
-        scanning = true; tickScan();
-      } else {
-        alert('BarcodeDetector not supported. Type the barcode manually.'); dbg('no BarcodeDetector');
-      }
-    } catch (e) {
-      alert('Camera access failed. Type the barcode manually.'); dbg('scan start err', e.message||e);
-    }
+        scanning=true; tickScan();
+      } else { alert('BarcodeDetector not supported. Type the barcode manually.'); }
+    }catch(e){ alert('Camera access failed. Type the barcode manually.'); }
   });
-  on($('btnScanClose'), 'click', ()=>{ dbg('btnScanClose clicked'); stopScan(); });
+  on($('btnScanClose'), 'click', stopScan);
   function stopScan(){
     scanning=false; if (scanRAF) cancelAnimationFrame(scanRAF);
     if (scanVideo) { try{ scanVideo.pause(); }catch{} }
@@ -330,120 +379,94 @@
     if (!scanning) return;
     try{
       const codes = await detector.detect(scanVideo);
-      if (codes && codes.length>0) {
-        const code = codes[0].rawValue || codes[0].displayValue;
-        if (code) { inBarcode.value = code; dbg('scan detected', code); stopScan(); }
-      }
-    }catch(e){ /* ignore per-frame */ }
+      if (codes?.length) { inBarcode.value = codes[0].rawValue || codes[0].displayValue; stopScan(); }
+    }catch(e){}
     scanRAF = requestAnimationFrame(tickScan);
   }
 
   // Photo input
-  on(inPhoto, 'change', ()=>{ photoName.textContent = inPhoto.files?.[0]?.name || ''; dbg('photo selected', photoName.textContent); });
+  on(inPhoto, 'change', ()=>{ photoName.textContent = inPhoto.files?.[0]?.name || ''; });
 
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${currentUser?.id || 'anon'}/${itemId}_${Date.now()}.${ext}`;
     const up = await withTimeout(supa.storage.from(STORAGE_BUCKET).upload(path, file, { upsert:false }), 7000, 'storage.upload');
-    if (up.error) { dbg('photo upload ERR', up.error.message||up.error); alert('Photo upload failed: '+up.error.message); return null; }
+    if (up.error) { alert('Photo upload failed: '+up.error.message); return null; }
     const pub = supa.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    const url = pub?.data?.publicUrl || null; dbg('photo uploaded url', url);
-    return url;
+    return pub?.data?.publicUrl || null;
   }
 
   // Save / Upsert
   on(btnAdd, 'click', async ()=>{
-    dbg('btnAdd clicked.');
     setBusy(btnAdd, true, 'Saving…', 'Save / Upsert');
-
     try{
       const barcode = inBarcode.value.trim();
       const name    = inName.value.trim();
       const unit    = inUnit.value.trim() || null;
       const pack    = inPack.value.trim() || null;
-      dbg('SAVE[1] inputs', { barcode, name, unit, pack, hasPhoto: !!(inPhoto.files?.[0]) });
-      console.log('AFTER_SAVE1');
-
-      const user = currentUser;
-      console.log('HAVE_USER?', !!user, user && user.id);
-      dbg('SAVE[2] user', { hasUser: !!user, userId: user?.id });
-      if (!user) { alert('Not signed in'); return; }
-      if (!barcode) { alert('Barcode required'); return; }
-
+      const expiry  = inExpiry.value ? inExpiry.value : null; // YYYY-MM-DD
+      if (!currentUser) return alert('Not signed in');
+      if (!barcode)    return alert('Barcode required');
       const lookup = await withTimeout(
         supa.from('catalogue').select('id').eq('barcode', barcode).limit(1).maybeSingle(),
         5000, 'lookup'
       );
-      dbg('SAVE[3] lookup', { err: !!lookup.error, found: !!lookup.data, id: lookup.data?.id });
-      if (lookup.error) { alert('Lookup failed: '+lookup.error.message); return; }
-
-      const base = { barcode, unit, pack_size:pack, user_id:user.id };
-      if (!lookup.data && !name) { alert('Name required for new items'); dbg('SAVE abort: name required'); return; }
+      if (lookup.error) return alert('Lookup failed: '+lookup.error.message);
+      const base = { barcode, unit, pack_size:pack, user_id:currentUser.id, expiry_date: expiry };
+      if (!lookup.data && !name) return alert('Name required for new items');
       if (name) base.name = name;
 
       if (inPhoto.files?.[0]) {
         const tempId = lookup.data?.id || (crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()));
-        dbg('SAVE[4] uploading photo…', { tempId });
         const photo_url = await uploadPhoto(inPhoto.files[0], tempId);
-        dbg('SAVE[4] photo url', photo_url);
         if (photo_url) base.photo_url = photo_url;
       }
 
       if (lookup.data) {
-        dbg('SAVE[5] updating', { id: lookup.data.id, base });
         const upd = await withTimeout(
           supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single(),
           6000, 'update'
         );
-        dbg('SAVE[5] update result', { err: !!upd.error, id: upd.data?.id });
-        if (upd.error) { alert('Update failed: '+upd.error.message); return; }
+        if (upd.error) return alert('Update failed: '+upd.error.message);
       } else {
-        dbg('SAVE[5] inserting', base);
         const ins = await withTimeout(
           supa.from('catalogue').insert(base).select().single(),
           6000, 'insert'
         );
-        dbg('SAVE[5] insert result', { err: !!ins.error, id: ins.data?.id });
-        if (ins.error) { alert('Insert failed: '+ins.error.message); return; }
+        if (ins.error) return alert('Insert failed: '+ins.error.message);
       }
 
-      inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; inPhoto.value=''; photoName.textContent='';
-      dbg('SAVE[6] cleared inputs; refreshing…');
+      inBarcode.value=''; inName.value=''; inUnit.value=''; inPack.value=''; inExpiry.value=''; inPhoto.value=''; photoName.textContent='';
       await refresh();
-      dbg('SAVE[7] done');
-
-    }catch(e){
-      dbg('SAVE[ERR]', e.message||String(e));
-      alert('Save failed: '+(e.message||e));
-    }finally{
-      setBusy(btnAdd, false);
-    }
+    }catch(e){ alert('Save failed: '+(e.message||e)); }
+    finally{ setBusy(btnAdd, false); }
   });
 
-  // Fetch & render
+  // Fetch & render (Catalogue)
   async function refresh(){
-    dbg('refresh() start');
     const q = await withTimeout(
       supa.from('v_catalogue_with_owner').select('*').order('updated_at',{ascending:false}).limit(1000),
       6000, 'view.select'
     );
-    if (q.error) { dbg('view.select ERR', q.error.message||q.error); return; }
-    rows = q.data || []; dbg('refresh() rows', rows.length);
-    render();
+    if (q.error) { alert('Load failed: '+q.error.message); return; }
+    rows = q.data || [];
+    renderCatalogue();
   }
 
   function editable(field, row) {
     const val = row[field] ?? '';
     const esc = String(val).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-    return `<input data-edit="${row.id}" data-field="${field}" value="${esc}" />`;
+    const type = (field === 'expiry_date') ? 'date' : 'text';
+    return `<input ${type==='date'?'type="date"':''} data-edit="${row.id}" data-field="${field}" value="${esc}" />`;
   }
 
-  function render(){
+  function renderCatalogue(){
     const q = ($('inSearch').value||'').toLowerCase();
     const data = !q ? rows : rows.filter(r => (r.name||'').toLowerCase().includes(q) || (r.barcode||'').toLowerCase().includes(q));
-    tblBody.innerHTML='';
+    const tbody = tblBody; tbody.innerHTML='';
     for (const r of data) {
+      const days = (typeof r.days_to_expiry === 'number' ? r.days_to_expiry : diffDays(r.expiry_date));
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${r.photo_url ? `<img src="${r.photo_url}" style="max-height:42px;border-radius:6px;border:1px solid rgba(255,255,255,.1)"/>` : ''}</td>
@@ -451,58 +474,55 @@
         <td>${editable('name', r)}</td>
         <td>${editable('unit', r)}</td>
         <td>${editable('pack_size', r)}</td>
+        <td>${editable('expiry_date', r)}</td>
+        <td>${(days??'')}</td>
         <td>${r.owner_email||''}</td>
         <td><label class="file"><input type="file" accept="image/*" data-photo="${r.id}"/>Change photo</label></td>`;
-      tblBody.appendChild(tr);
+      tbody.appendChild(tr);
     }
     // wire inline edits & photos
-    tblBody.querySelectorAll('input[data-edit]').forEach(inp=>{
+    tbody.querySelectorAll('input[data-edit]').forEach(inp=>{
       inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ onInlineEdit(e); }});
       inp.addEventListener('change', onInlineEdit);
     });
-    tblBody.querySelectorAll('input[data-photo]').forEach(inp=>{
+    tbody.querySelectorAll('input[data-photo]').forEach(inp=>{
       inp.addEventListener('change', onPhotoChange);
     });
-    dbg('render() done, rows on screen', data.length);
   }
 
   async function onInlineEdit(e){
     const input = e.currentTarget;
     const id = input.getAttribute('data-edit');
     const field = input.getAttribute('data-field');
-    const value = input.value.trim() || null;
-    dbg('inlineEdit', { id, field, value });
-    if (field === 'name' && (!value || value.length===0)) { alert('Name is required'); return render(); }
+    let value = input.value.trim();
+    if (field === 'name' && !value) { alert('Name is required'); return renderCatalogue(); }
+    if (value === '') value = null;
     const payload={}; payload[field]=value;
     const res = await withTimeout(
       supa.from('catalogue').update(payload).eq('id', id).select().single(),
       6000, 'inline.update'
     );
-    if (res.error) { dbg('inline edit ERR', res.error.message||res.error); alert(res.error.message); }
-    else dbg('inline edit OK', {id, field});
+    if (res.error) { alert(res.error.message); } else { await refresh(); }
   }
 
   async function onPhotoChange(e){
     const file = e.target.files?.[0]; if(!file) return;
     const id = e.target.getAttribute('data-photo');
-    dbg('photo change', { id, name:file.name });
     const url = await uploadPhoto(file, id);
     if (!url) return;
     const res = await withTimeout(
       supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single(),
       6000, 'photo.update'
     );
-    if (res.error) { dbg('photo update ERR', res.error.message||res.error); return alert(res.error.message); }
-    dbg('photo update OK'); await refresh();
+    if (res.error) { alert(res.error.message); } else { await refresh(); }
   }
 
   // CSV export/import
   on(btnExport, 'click', ()=>{
-    dbg('btnExport clicked');
-    const header = ['barcode','name','unit','pack_size','owner_email'];
+    const header = ['barcode','name','unit','pack_size','expiry_date','owner_email'];
     const lines = [header.join(',')];
     for (const r of rows) {
-      const vals = [r.barcode||'', r.name||'', r.unit||'', r.pack_size||'', r.owner_email||'']
+      const vals = [r.barcode||'', r.name||'', r.unit||'', r.pack_size||'', r.expiry_date||'', r.owner_email||'']
         .map(v => `"${String(v).replace(/"/g,'""')}"`);
       lines.push(vals.join(','));
     }
@@ -511,14 +531,19 @@
   });
 
   on(inImport, 'change', async (e)=>{
-    dbg('inImport change');
     if (!isAdmin) { alert('Only admin can import.'); return; }
     const file = e.target.files?.[0]; if(!file) return;
     const txt = await file.text();
     const lines = txt.split(/\r?\n/).filter(Boolean);
     const header = lines.shift(); if(!header) return alert('Empty CSV');
     const cols = header.split(',').map(s=>s.replace(/^"|"$/g,''));
-    const idx = { barcode: cols.indexOf('barcode'), name: cols.indexOf('name'), unit: cols.indexOf('unit'), pack_size: cols.indexOf('pack_size') };
+    const idx = {
+      barcode:   cols.indexOf('barcode'),
+      name:      cols.indexOf('name'),
+      unit:      cols.indexOf('unit'),
+      pack_size: cols.indexOf('pack_size'),
+      expiry_date: cols.indexOf('expiry_date'),
+    };
     if (idx.barcode<0) return alert('CSV must include "barcode" column');
     const user = currentUser;
     let ok=0, fail=0;
@@ -529,48 +554,59 @@
       if (idx.name>=0) payload.name = unq(parts[idx.name])||null;
       if (idx.unit>=0) payload.unit = unq(parts[idx.unit])||null;
       if (idx.pack_size>=0) payload.pack_size = unq(parts[idx.pack_size])||null;
+      if (idx.expiry_date>=0) payload.expiry_date = unq(parts[idx.expiry_date])||null;
       if (!payload.barcode) { fail++; continue; }
       const up = await withTimeout(supa.from('catalogue').upsert(payload, { onConflict:'barcode' }), 6000, 'csv.upsert');
-      if (up.error) { fail++; dbg('import row ERR', up.error.message||up.error, payload.barcode); } else ok++;
+      if (up.error) fail++; else ok++;
     }
     alert(`Import complete: ${ok} ok, ${fail} failed`); await refresh();
   });
 
   // Toolbar
-  on($('btnRefresh'), 'click', ()=>{ dbg('btnRefresh clicked'); refresh(); });
-  on($('inSearch'), 'input', ()=>{ dbg('inSearch input'); render(); });
-  on(chkAll, 'change', ()=>{ dbg('chkAll change', chkAll.checked); /* Hook for future org-wide view */ refresh(); });
+  on($('btnRefresh'), 'click', ()=> refresh());
+  on($('inSearch'), 'input', ()=> renderCatalogue());
 
-  // Debug toolbar
-  on($('btnDbgRead'), 'click', async ()=>{
-    dbg('DEBUG: READ view…');
-    const v = await withTimeout(supa.from('v_catalogue_with_owner').select('*').limit(1), 5000, 'dbg.read.view');
-    dbg('view:', v.error ? ('ERR '+(v.error.message||v.error)) : ('OK count='+(v.data?.length||0)));
-    const t = await withTimeout(supa.from('catalogue').select('*').limit(1), 5000, 'dbg.read.table');
-    dbg('table:', t.error ? ('ERR '+(t.error.message||t.error)) : ('OK count='+(t.data?.length||0)));
-  });
+  // Re-Ordering: find expiring items
+  on(btnFindExpiring, 'click', ()=> loadExpiring());
+  on(reSearch, 'input', ()=> renderExpiringCache());
+  on(reShowExpired, 'change', ()=> loadExpiring());
 
-  on($('btnDbgWrite'), 'click', async ()=>{
-    dbg('DEBUG: WRITE probe…');
-    const user = currentUser; if (!user) return dbg('no user');
-    const b = 'DEBUG-' + Math.random().toString(36).slice(2,6);
-    const ins = await withTimeout(
-      supa.from('catalogue').insert({ barcode:b, name:'probe', unit:'ea', pack_size:'1', user_id:user.id }).select().single(),
-      6000, 'dbg.write'
-    );
-    dbg(ins.error ? ('ERR '+(ins.error.message||ins.error)) : `OK id=${ins.data?.id}`);
-  });
+  let expiringCache = [];
+  async function loadExpiring(){
+    const days = Math.max(1, Number(reDays.value||60));
+    const today = todayStr();
+    const until = addDaysStr(days);
+    const showExpired = reShowExpired.checked;
 
-  on($('btnDbgRaw'), 'click', async ()=>{
-    dbg('DEBUG: RAW probe…');
-    const s = await withTimeout(supa.auth.getSession(), 3000, 'dbg.session');
-    const token = s.data?.session?.access_token;
-    const url = `${SUPABASE_URL}/rest/v1/catalogue?select=id,barcode,name&limit=1`;
-    try{
-      const res = await withTimeout(fetch(url, { headers:{ apikey: SUPABASE_ANON, Authorization: token?`Bearer ${token}`:`Bearer ${SUPABASE_ANON}` } }), 6000, 'dbg.raw.fetch');
-      const text = await res.text(); dbg('raw status', res.status, 'body', text);
-    }catch(e){ dbg('raw fetch ERR', e.message||String(e)); }
-  });
+    // Build query: expiry_date BETWEEN today..until (and optionally < today)
+    let q = supa.from('v_catalogue_with_owner').select('*').order('expiry_date',{ascending:true});
+    q = q.lte('expiry_date', until);
+    if (!showExpired) q = q.gte('expiry_date', today);
+    const res = await withTimeout(q, 6000, 'expiring.select');
+    if (res.error) { alert('Fetch failed: '+res.error.message); return; }
+    expiringCache = res.data || [];
+    renderExpiringCache();
+  }
+
+  function renderExpiringCache(){
+    const term = (reSearch.value||'').toLowerCase();
+    const data = !term ? expiringCache :
+      expiringCache.filter(r => (r.name||'').toLowerCase().includes(term) || (r.barcode||'').toLowerCase().includes(term));
+    const tb = tblExpiring; tb.innerHTML='';
+    for (const r of data) {
+      const days = (typeof r.days_to_expiry === 'number' ? r.days_to_expiry : diffDays(r.expiry_date));
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono">${r.barcode||''}</td>
+        <td>${r.name||''}</td>
+        <td>${r.unit||''}</td>
+        <td>${r.pack_size||''}</td>
+        <td>${r.expiry_date||''}</td>
+        <td>${(days??'')}</td>
+        <td>${r.owner_email||''}</td>`;
+      tb.appendChild(tr);
+    }
+  }
 
   // Start
   boot();
