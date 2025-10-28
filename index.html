@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dental Inventory</title>
 
-<!-- Favicon (inline). Replace with: <link rel="icon" href="favicon.ico"> if you add a file -->
+<!-- Favicon (inline). Replace with a file if you prefer -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🦷%3C/text%3E%3C/svg%3E">
 
 <!-- Supabase SDK -->
@@ -37,11 +37,15 @@
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
   .mono{font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;}
+
+  .label{display:block;font-size:0.85rem;color:#94a3b8;margin-bottom:4px}
+
   /* Debug dock */
   #debug{position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px;z-index:40}
   #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
   #dbgBody{padding:8px}
   pre{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;margin:0}
+
   /* Scanner modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
   .sheet{background:#0b1220;border:1px solid var(--border);border-radius:16px;padding:16px;max-width:680px;width:92%}
@@ -49,6 +53,15 @@
   .hint{color:var(--muted);font-size:.85rem}
   .file{display:inline-block;padding:.5rem .7rem;border:1px dashed var(--border);border-radius:8px;background:#101830;cursor:pointer}
   .file input{display:none}
+
+  /* Mobile responsiveness */
+  @media (max-width: 700px) {
+    .row, .row3 { display:flex; flex-direction:column; }
+    input, select, button { width:100% !important; }
+    .btn { margin-top:4px; }
+    .file { width:100%; text-align:center; }
+    table { font-size:.9rem; }
+  }
 </style>
 </head>
 <body>
@@ -66,8 +79,13 @@
   <!-- Auth -->
   <div id="authCard" class="card">
     <div class="row">
-      <div><input id="email" type="email" placeholder="you@clinic.com"/></div>
-      <div style="align-self:end"><button id="btnMagic" class="btn primary">Send Magic Link</button></div>
+      <div>
+        <label for="email" class="label">Email</label>
+        <input id="email" type="email" placeholder="you@clinic.com"/>
+      </div>
+      <div style="align-self:end">
+        <button id="btnMagic" class="btn primary">Send Magic Link</button>
+      </div>
     </div>
     <div class="row" style="margin-top:8px">
       <div><button id="btnGoogle" class="btn alt">Continue with Google</button></div>
@@ -90,18 +108,32 @@
       <div class="card">
         <div class="row3">
           <div>
+            <label for="inBarcode" class="label">Barcode</label>
             <div style="display:flex;gap:8px">
               <input id="inBarcode" class="mono" placeholder="Scan or type barcode…"/>
               <button id="btnScan" class="btn alt" style="width:auto">📷 Scan</button>
             </div>
           </div>
-          <div><input id="inName" placeholder="Item Name (required for new)"/></div>
-          <div><input id="inUnit" placeholder="Unit (e.g., box / pack / ea)"/></div>
+          <div>
+            <label for="inName" class="label">Item Name</label>
+            <input id="inName" placeholder="Item Name (required for new)"/>
+          </div>
+          <div>
+            <label for="inUnit" class="label">Unit</label>
+            <input id="inUnit" placeholder="Unit (e.g., box / pack / ea)"/>
+          </div>
         </div>
+
         <div class="row3" style="margin-top:8px">
-          <div><input id="inPack" placeholder="Pack size (e.g., x10 / 50pcs / 3g)"/></div>
-          <div><input id="inExpiry" type="date" placeholder="Expiry Date"/></div>
-          <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end">
+          <div>
+            <label for="inPack" class="label">Pack Size</label>
+            <input id="inPack" placeholder="Pack size (e.g., x10 / 50pcs / 3g)"/>
+          </div>
+          <div>
+            <label for="inExpiry" class="label">Expiry Date</label>
+            <input id="inExpiry" type="date" placeholder="dd/mm/yyyy"/>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
             <label class="file"><input id="inPhoto" type="file" accept="image/*" capture="environment"/>Upload Photo</label>
             <span id="photoName" class="hint"></span>
             <button id="btnAdd" class="btn primary">Save / Upsert</button>
@@ -133,16 +165,30 @@
     <!-- PAGE: RE-ORDERING -->
     <section id="pageReorder" class="hidden">
       <div class="card">
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <label>Expiring within
-            <input id="reDays" type="number" min="1" value="60" style="width:90px;margin-left:6px"/> days
-          </label>
-          <label style="display:flex;gap:6px;align-items:center;margin-left:12px">
-            <input id="reShowExpired" type="checkbox"/> include already expired
-          </label>
-          <button id="btnFindExpiring" class="btn primary" style="width:auto">Find expiring</button>
-          <input id="reSearch" placeholder="Filter name/barcode…" class="mono" style="flex:1 1 240px"/>
+        <div class="row">
+          <div>
+            <label for="reDays" class="label">Expiring within (days)</label>
+            <input id="reDays" type="number" min="1" value="60" placeholder="e.g., 60"/>
+          </div>
+          <div>
+            <label class="label" for="reShowExpired">Include already expired</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input id="reShowExpired" type="checkbox"/>
+              <span class="hint">Show items with expiry date before today</span>
+            </div>
+          </div>
         </div>
+
+        <div class="row" style="margin-top:8px">
+          <div>
+            <label for="reSearch" class="label">Filter</label>
+            <input id="reSearch" placeholder="Filter name/barcode…"/>
+          </div>
+          <div style="align-self:end">
+            <button id="btnFindExpiring" class="btn primary" style="width:auto">Find expiring</button>
+          </div>
+        </div>
+
         <div class="hint" style="margin-top:6px">Shows items with an Expiry Date set that are due within the chosen window.</div>
         <div style="overflow:auto;margin-top:8px">
           <table>
@@ -193,10 +239,10 @@
   const STORAGE_BUCKET = 'product_photos';
   /***************/
 
-  // Helpers & Debug (bullet-proof)
+  // Helpers & Debug
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
-  const DEBUG = qs.get('debug') === '1'; // only with ?debug=1
+  const DEBUG = qs.get('debug') === '1';
   const logEl = $('log'), dbgUrl = $('dbgUrl');
 
   const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
@@ -207,21 +253,17 @@
           if (typeof x==='string') return x;
           if (x instanceof Event) return `[Event:${x.type}]`;
           return JSON.stringify(x, (_k,v)=> (v===window||v===document)?'[window/document]':v);
-        } catch {
-          try { return String(x); } catch { return '[unserializable]'; }
-        }
+        } catch { try { return String(x); } catch { return '[unserializable]'; } }
       });
       console.log('[DBG]', ...a);
       if (DEBUG && logEl) logEl.textContent += `[${ts()}] ` + parts.join(' ') + '\n';
-    } catch (e) {
-      console.log('[DBG-FALLBACK]', ...a, '(dbg err:', e?.message, ')');
-    }
+    } catch (e) { console.log('[DBG-FALLBACK]', ...a, '(dbg err:', e?.message, ')'); }
   }
   const on = (el, ev, fn)=>{ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); };
   const setBusy = (btn,on,label='Working…',idle)=>{ if(!btn) return; if(on){ btn.dataset._t=btn.textContent; btn.disabled=true; btn.textContent=label; } else { btn.disabled=false; btn.textContent=idle||btn.dataset._t||btn.textContent; } };
-  const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}}:${ms}ms`)), ms)) ]);
+  const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms)) ]);
 
-  // Date helpers
+  // Dates
   const toLocalDateStr = d=>{
     const dt = (d instanceof Date)? d : new Date(d);
     dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
@@ -229,12 +271,7 @@
   };
   const addDaysStr = (days)=>{ const dt = new Date(); dt.setDate(dt.getDate()+days); return toLocalDateStr(dt); };
   const todayStr = ()=> toLocalDateStr(new Date());
-  const diffDays = (dateStr)=>{
-    if (!dateStr) return null;
-    const a = new Date(toLocalDateStr(new Date()));
-    const b = new Date(dateStr+'T00:00:00');
-    return Math.round((b - a) / 86400000);
-  };
+  const diffDays = (dateStr)=>{ if (!dateStr) return null; const a = new Date(toLocalDateStr(new Date())); const b = new Date(dateStr+'T00:00:00'); return Math.round((b - a) / 86400000); };
 
   // Global error hooks
   window.addEventListener('error', e=>{ dbg('onerror', e.message, e.filename+':'+e.lineno+':'+e.colno); });
@@ -255,18 +292,17 @@
     auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
   });
 
-  // DOM refs (single declaration!)
+  // DOM refs (unique scanner names)
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
   const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inExpiry=$('inExpiry'), inPhoto=$('inPhoto'), photoName=$('photoName');
   const tblBody=$('tblBody'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
-  const scanModal=$('scanModal'), scanVideo=$('scanVideo'), btnAdd=$('btnAdd');
+  const scanModalEl=$('scanModal'), scanVideoEl=$('scanVideo'), btnAdd=$('btnAdd');
   const tabCatalogue=$('tabCatalogue'), tabReorder=$('tabReorder'), pageCatalogue=$('pageCatalogue'), pageReorder=$('pageReorder');
   const btnFindExpiring=$('btnFindExpiring'), reDays=$('reDays'), reShowExpired=$('reShowExpired'), reSearch=$('reSearch'), tblExpiring=$('tblExpiring');
 
-  // Session cache
+  // Session + scanner state
   let currentUser = null;
   let profile=null, isAdmin=false, rows=[];
-  // Scanner state (single declaration)
   let stream=null, detector=null, scanning=false, scanRAF=null;
 
   // Boot
@@ -283,10 +319,7 @@
 
   supa.auth.onAuthStateChange(async (event, session) => {
     dbg('onAuthStateChange', { event, hasSession: !!session });
-    if (session?.user) {
-      currentUser = session.user;
-      await onSignedIn(session.user);
-    }
+    if (session?.user) { currentUser = session.user; await onSignedIn(session.user); }
   });
 
   async function onSignedIn(user){
@@ -300,7 +333,6 @@
       );
       if (pr.error) dbg('profiles.select ERR', pr.error.message||pr.error);
       if (!pr.data) {
-        dbg('profiles.upsert (create self profile)');
         const up = await withTimeout(
           supa.from('profiles').upsert({ id:user.id, email:user.email }).select().single(),
           4000, 'profiles.upsert'
@@ -314,34 +346,31 @@
       orgHint.textContent = p2.org_id ? `Org: ${String(p2.org_id).slice(0,8)}…` : 'Org: —';
       lblImport.classList.toggle('hidden', !isAdmin);
 
-      await refresh(); // initial load of catalogue
+      await refresh();
     }catch(e){ dbg('onSignedIn ERR', e.message||String(e)); }
   }
 
   // Auth buttons
   on($('btnMagic'), 'click', async ()=>{
-    dbg('btnMagic clicked');
     const email = $('email').value.trim(); if(!email) return alert('Enter email');
     const { error } = await supa.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } });
-    if (error) { dbg('signInWithOtp ERR', error.message||error); return alert(error.message); }
+    if (error) return alert(error.message);
     alert('Check your email for the sign-in link.');
   });
 
   on($('btnGoogle'), 'click', async ()=>{
-    dbg('btnGoogle clicked');
     const { error } = await supa.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: REDIRECT_URL, queryParams:{ prompt:'select_account' } } });
-    if (error) { dbg('signInWithOAuth ERR', error.message||error); alert(error.message); }
+    if (error) alert(error.message);
   });
 
-  async function signOutAndReset(tag){
-    dbg(tag,'clicked');
-    try { supa.auth.signOut(); } catch(e){ dbg('signOut ERR', e.message||e); }
+  async function signOutAndReset(){
+    try { await supa.auth.signOut(); } catch {}
     try { localStorage.clear(); sessionStorage.clear(); } catch{}
     location.replace(REDIRECT_URL);
   }
-  on($('btnReset'), 'click', ()=>signOutAndReset('btnReset'));
-  on($('btnInAppReset'), 'click', ()=>signOutAndReset('btnInAppReset'));
-  on($('btnSignOut'), 'click', ()=>signOutAndReset('btnSignOut'));
+  on($('btnReset'), 'click', ()=>signOutAndReset());
+  on($('btnInAppReset'), 'click', ()=>signOutAndReset());
+  on($('btnSignOut'), 'click', ()=>signOutAndReset());
 
   // Tabs
   function activateTab(which){
@@ -353,14 +382,14 @@
   on(tabCatalogue, 'click', ()=> activateTab('cat'));
   on(tabReorder, 'click', ()=> activateTab('reo'));
 
-  // Scanner (uses single declarations above)
+  // Scanner
   on($('btnScan'), 'click', async ()=>{
-    scanModal.classList.remove('hidden'); scanModal.setAttribute('aria-hidden','false');
+    scanModalEl.classList.remove('hidden'); scanModalEl.setAttribute('aria-hidden','false');
     try{
       if ('BarcodeDetector' in window) {
         if (!detector) detector = new window.BarcodeDetector({ formats: ['ean_13','ean_8','code_128','upc_a','upc_e','code_39','itf'] });
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
-        scanVideo.srcObject = stream; await scanVideo.play();
+        scanVideoEl.srcObject = stream; await scanVideoEl.play();
         scanning=true; tickScan();
       } else { alert('BarcodeDetector not supported. Type the barcode manually.'); }
     }catch(e){ alert('Camera access failed. Type the barcode manually.'); }
@@ -368,22 +397,21 @@
   on($('btnScanClose'), 'click', stopScan);
   function stopScan(){
     scanning=false; if (scanRAF) cancelAnimationFrame(scanRAF);
-    if (scanVideo) { try{ scanVideo.pause(); }catch{} }
+    if (scanVideoEl) { try{ scanVideoEl.pause(); }catch{} }
     if (stream) { stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    scanModal.classList.add('hidden'); scanModal.setAttribute('aria-hidden','true');
+    scanModalEl.classList.add('hidden'); scanModalEl.setAttribute('aria-hidden','true');
   }
   async function tickScan(){
     if (!scanning) return;
     try{
-      const codes = await detector.detect(scanVideo);
+      const codes = await detector.detect(scanVideoEl);
       if (codes?.length) { inBarcode.value = codes[0].rawValue || codes[0].displayValue; stopScan(); }
     }catch(e){}
     scanRAF = requestAnimationFrame(tickScan);
   }
 
-  // Photo input
+  // Photo
   on(inPhoto, 'change', ()=>{ photoName.textContent = inPhoto.files?.[0]?.name || ''; });
-
   async function uploadPhoto(file, itemId) {
     if (!file) return null;
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
@@ -402,7 +430,7 @@
       const name    = inName.value.trim();
       const unit    = inUnit.value.trim() || null;
       const pack    = inPack.value.trim() || null;
-      const expiry  = inExpiry.value ? inExpiry.value : null; // YYYY-MM-DD
+      const expiry  = inExpiry.value ? inExpiry.value : null;
       if (!currentUser) return alert('Not signed in');
       if (!barcode)    return alert('Barcode required');
       const lookup = await withTimeout(
@@ -421,16 +449,10 @@
       }
 
       if (lookup.data) {
-        const upd = await withTimeout(
-          supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single(),
-          6000, 'update'
-        );
+        const upd = await withTimeout(supa.from('catalogue').update(base).eq('id', lookup.data.id).select().single(), 6000, 'update');
         if (upd.error) return alert('Update failed: '+upd.error.message);
       } else {
-        const ins = await withTimeout(
-          supa.from('catalogue').insert(base).select().single(),
-          6000, 'insert'
-        );
+        const ins = await withTimeout(supa.from('catalogue').insert(base).select().single(), 6000, 'insert');
         if (ins.error) return alert('Insert failed: '+ins.error.message);
       }
 
@@ -477,7 +499,7 @@
         <td><label class="file"><input type="file" accept="image/*" data-photo="${r.id}"/>Change photo</label></td>`;
       tbody.appendChild(tr);
     }
-    // wire inline edits & photos
+    // Wire inline edits & photo changes
     tbody.querySelectorAll('input[data-edit]').forEach(inp=>{
       inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ onInlineEdit(e); }});
       inp.addEventListener('change', onInlineEdit);
@@ -495,10 +517,7 @@
     if (field === 'name' && !value) { alert('Name is required'); return renderCatalogue(); }
     if (value === '') value = null;
     const payload={}; payload[field]=value;
-    const res = await withTimeout(
-      supa.from('catalogue').update(payload).eq('id', id).select().single(),
-      6000, 'inline.update'
-    );
+    const res = await withTimeout(supa.from('catalogue').update(payload).eq('id', id).select().single(), 6000, 'inline.update');
     if (res.error) { alert(res.error.message); } else { await refresh(); }
   }
 
@@ -507,10 +526,7 @@
     const id = e.target.getAttribute('data-photo');
     const url = await uploadPhoto(file, id);
     if (!url) return;
-    const res = await withTimeout(
-      supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single(),
-      6000, 'photo.update'
-    );
+    const res = await withTimeout(supa.from('catalogue').update({ photo_url:url }).eq('id', id).select().single(), 6000, 'photo.update');
     if (res.error) { alert(res.error.message); } else { await refresh(); }
   }
 
@@ -534,13 +550,7 @@
     const lines = txt.split(/\r?\n/).filter(Boolean);
     const header = lines.shift(); if(!header) return alert('Empty CSV');
     const cols = header.split(',').map(s=>s.replace(/^"|"$/g,''));
-    const idx = {
-      barcode:   cols.indexOf('barcode'),
-      name:      cols.indexOf('name'),
-      unit:      cols.indexOf('unit'),
-      pack_size: cols.indexOf('pack_size'),
-      expiry_date: cols.indexOf('expiry_date'),
-    };
+    const idx = { barcode: cols.indexOf('barcode'), name: cols.indexOf('name'), unit: cols.indexOf('unit'), pack_size: cols.indexOf('pack_size'), expiry_date: cols.indexOf('expiry_date') };
     if (idx.barcode<0) return alert('CSV must include "barcode" column');
     const user = currentUser;
     let ok=0, fail=0;
@@ -559,7 +569,7 @@
     alert(`Import complete: ${ok} ok, ${fail} failed`); await refresh();
   });
 
-  // Re-Ordering: find expiring items
+  // Re-Ordering
   on(btnFindExpiring, 'click', ()=> loadExpiring());
   on(reSearch, 'input', ()=> renderExpiringCache());
   on(reShowExpired, 'change', ()=> loadExpiring());
