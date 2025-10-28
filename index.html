@@ -36,7 +36,7 @@
   tbody tr td:first-child{border-top-left-radius:10px;border-bottom-left-radius:10px}
   tbody tr td:last-child{border-top-right-radius:10px;border-bottom-right-radius:10px}
   .badge{padding:.2rem .5rem;border-radius:999px;border:1px solid var(--border);font-size:.75rem}
-  .mono{font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+  .mono{font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;}
   /* Debug dock */
   #debug{position:fixed;left:0;right:0;bottom:0;max-height:46vh;overflow:auto;background:#0a0f1d;border-top:1px solid var(--border);font-size:12px;z-index:40}
   #dbgHead{display:flex;gap:8px;align-items:center;padding:8px;border-bottom:1px solid var(--border)}
@@ -196,8 +196,7 @@
   // Helpers & Debug (bullet-proof)
   const $ = id => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
-  // Debug is ONLY on when ?debug=1 (no longer auto-opens on OAuth return)
-  const DEBUG = qs.get('debug') === '1';
+  const DEBUG = qs.get('debug') === '1'; // only with ?debug=1
   const logEl = $('log'), dbgUrl = $('dbgUrl');
 
   const ts = ()=> new Date().toISOString().split('T')[1].replace('Z','');
@@ -220,23 +219,21 @@
   }
   const on = (el, ev, fn)=>{ if(!el){ if(DEBUG) dbg('wire skipped (missing element)'); return; } el.addEventListener(ev, fn, { passive:true }); };
   const setBusy = (btn,on,label='Working…',idle)=>{ if(!btn) return; if(on){ btn.dataset._t=btn.textContent; btn.disabled=true; btn.textContent=label; } else { btn.disabled=false; btn.textContent=idle||btn.dataset._t||btn.textContent; } };
-  const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}:${ms}ms`)), ms)) ]);
+  const withTimeout = (p, ms, tag) => Promise.race([ p, new Promise((_,rej)=> setTimeout(()=> rej(new Error(`timeout:${tag||'op'}}:${ms}ms`)), ms)) ]);
 
-  // Dates (local YYYY-MM-DD)
+  // Date helpers
   const toLocalDateStr = d=>{
     const dt = (d instanceof Date)? d : new Date(d);
     dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
     return dt.toISOString().slice(0,10);
   };
-  const addDaysStr = (days)=>{
-    const dt = new Date(); dt.setDate(dt.getDate()+days); return toLocalDateStr(dt);
-  };
+  const addDaysStr = (days)=>{ const dt = new Date(); dt.setDate(dt.getDate()+days); return toLocalDateStr(dt); };
   const todayStr = ()=> toLocalDateStr(new Date());
   const diffDays = (dateStr)=>{
     if (!dateStr) return null;
-    const a = new Date(toLocalDateStr(new Date())); // today local
+    const a = new Date(toLocalDateStr(new Date()));
     const b = new Date(dateStr+'T00:00:00');
-    const ms = b - a; return Math.round(ms / 86400000);
+    return Math.round((b - a) / 86400000);
   };
 
   // Global error hooks
@@ -258,7 +255,7 @@
     auth: { persistSession:true, detectSessionInUrl:true, flowType:'pkce' }
   });
 
-  // DOM refs
+  // DOM refs (single declaration!)
   const authCard=$('authCard'), app=$('app'), roleBadge=$('roleBadge'), userEmail=$('userEmail'), orgHint=$('orgHint');
   const inBarcode=$('inBarcode'), inName=$('inName'), inUnit=$('inUnit'), inPack=$('inPack'), inExpiry=$('inExpiry'), inPhoto=$('inPhoto'), photoName=$('photoName');
   const tblBody=$('tblBody'), btnExport=$('btnExport'), lblImport=$('lblImport'), inImport=$('inImport');
@@ -268,7 +265,9 @@
 
   // Session cache
   let currentUser = null;
-  let profile=null, isAdmin=false, rows=[]; // rows for catalogue
+  let profile=null, isAdmin=false, rows=[];
+  // Scanner state (single declaration)
+  let stream=null, detector=null, scanning=false, scanRAF=null;
 
   // Boot
   dbg('Page load. href=', location.href);
@@ -354,9 +353,7 @@
   on(tabCatalogue, 'click', ()=> activateTab('cat'));
   on(tabReorder, 'click', ()=> activateTab('reo'));
 
-  // Scanner
-  let stream=null, detector=null, scanning=false, scanRAF=null;
-  const scanModal=$('scanModal'), scanVideo=$('scanVideo');
+  // Scanner (uses single declarations above)
   on($('btnScan'), 'click', async ()=>{
     scanModal.classList.remove('hidden'); scanModal.setAttribute('aria-hidden','false');
     try{
@@ -562,10 +559,6 @@
     alert(`Import complete: ${ok} ok, ${fail} failed`); await refresh();
   });
 
-  // Toolbar
-  on($('btnRefresh'), 'click', ()=> refresh());
-  on($('inSearch'), 'input', ()=> renderCatalogue());
-
   // Re-Ordering: find expiring items
   on(btnFindExpiring, 'click', ()=> loadExpiring());
   on(reSearch, 'input', ()=> renderExpiringCache());
@@ -578,7 +571,6 @@
     const until = addDaysStr(days);
     const showExpired = reShowExpired.checked;
 
-    // Build query: expiry_date BETWEEN today..until (and optionally < today)
     let q = supa.from('v_catalogue_with_owner').select('*').order('expiry_date',{ascending:true});
     q = q.lte('expiry_date', until);
     if (!showExpired) q = q.gte('expiry_date', today);
