@@ -4,22 +4,23 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dental Inventory App</title>
+  <link rel="icon" href="data:,"><!-- silence favicon 404 -->
+
   <style>
-    :root { --bg:#f7f7fb; --card:#ffffff; --text:#111; --muted:#667; --brand:#1a73e8; --danger:#c62828; --ok:#2e7d32; --border:#e5e7eb; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--text); }
+    :root { --bg:#f7f7fb; --card:#fff; --text:#111; --muted:#667; --brand:#1a73e8; --danger:#c62828; --ok:#2e7d32; --border:#e5e7eb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:var(--text); }
     header { position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; gap:12px; align-items:center; }
     header h1 { margin:0; font-size:18px; font-weight:600; }
-    .pill { padding:6px 10px; border:1px solid var(--border); border-radius:999px; background:#fff; cursor:pointer; }
     .tabs { display:flex; gap:8px; flex-wrap:wrap; }
     .tab { padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:14px; }
     .tab.active { background:var(--brand); color:#fff; border-color:var(--brand); }
-    main { padding:16px; max-width:1000px; margin:0 auto; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.03); }
+    main { padding:16px; max-width:1100px; margin:0 auto; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
-    .row-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
     label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
-    input, select, textarea { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
+    input, select { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
     button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
     button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
     button.ghost { background:#fff; }
@@ -27,55 +28,53 @@
     th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); font-size:14px; vertical-align:top; }
     th { background:#fafafa; position:sticky; top:0; z-index:1; }
     .muted { color:var(--muted); }
-    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); background:#fff; }
-    .badge.ok { border-color:#a5d6a7; }
-    .badge.warn { border-color:#ffe082; }
-    .badge.danger { border-color:#ef9a9a; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); }
     .sticky-bottom { position:fixed; bottom:12px; left:0; right:0; display:flex; justify-content:center; pointer-events:none; }
     .sticky-bottom > * { pointer-events:auto; }
     .hidden { display:none !important; }
     .split { display:flex; gap:16px; flex-wrap:wrap; }
     .grow { flex:1 1 320px; }
-    .right { margin-left:auto; }
-    .danger { color:var(--danger); }
-    .ok { color:var(--ok); }
-    .grid { display:grid; gap:12px; }
     .img { width:80px; height:80px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
     .hr { height:1px; background:var(--border); margin:12px 0; }
     dialog { border:0; border-radius:16px; padding:0; overflow:hidden; }
     dialog .dialog-body { padding:16px; }
     dialog::backdrop { background:rgba(0,0,0,0.3); }
-    .hint { font-size:12px; color:var(--muted); }
+    .ok { color:var(--ok); } .warn { color:#b26a00; } .danger { color:var(--danger); }
   </style>
 
-  <!-- Supabase JS v2 -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-  <!-- ZXing for iPhone-friendly scanning -->
+  <!-- ZXing for iPhone-friendly scanning (UMD global) -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
+
+  <!-- Supabase UMD (global window.supabase) — MUST load BEFORE our app script -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
+
 <body>
   <header>
     <h1>Dental Inventory</h1>
     <div class="tabs" id="tabs"></div>
-    <div class="right">
-      <span id="whoami" class="muted"></span>
-    </div>
+    <div class="right"><span id="whoami" class="muted"></span></div>
   </header>
 
   <main>
+    <!-- AUTH -->
     <section id="authSection" class="card hidden">
       <h3>Sign in</h3>
-      <div class="grid">
-        <button id="btnGoogle" class="primary">Continue with Google</button>
-        <div class="row">
+      <div class="row">
+        <div>
+          <label>Email</label>
           <input id="email" type="email" placeholder="name@example.com" />
-          <button id="btnMagic">Send Magic Link</button>
         </div>
-        <p class="hint">We only use your email to identify your clinic profile.</p>
+        <div style="align-self:end;">
+          <button id="btnMagic" class="primary">Send Magic Link</button>
+        </div>
       </div>
+      <div class="hr"></div>
+      <button id="btnGoogle">Continue with Google</button>
+      <p class="muted">We use your email to link your clinic data.</p>
     </section>
 
-    <!-- TRANSACTIONS (default) -->
+    <!-- TRANSACTIONS (default tab) -->
     <section id="tab-transactions" class="card hidden">
       <h3>Transactions</h3>
       <div class="split">
@@ -87,7 +86,7 @@
                 <input id="trxBarcode" placeholder="Scan or type barcode…" inputmode="numeric" />
                 <button id="btnScan" class="ghost">Scan</button>
               </div>
-              <p class="hint">On iPhone, camera scanning uses a built-in plugin.</p>
+              <p class="muted">iPhone scanning supported via camera plugin.</p>
             </div>
             <div>
               <label>Kind</label>
@@ -125,17 +124,18 @@
           <div style="margin-top:12px;">
             <button id="btnSaveTrx" class="primary">Save Transaction</button>
           </div>
+
           <div class="hr"></div>
           <h4>Recent Transactions</h4>
           <div id="trxTableWrap" style="max-height:360px; overflow:auto;">
             <table id="trxTable">
               <thead><tr>
                 <th>When</th><th>Barcode</th><th>Name</th><th>Kind</th><th>Qty</th><th>Lot</th><th>Expiry</th><th>Note</th>
-              </tr></thead>
-              <tbody></tbody>
+              </tr></thead><tbody></tbody>
             </table>
           </div>
         </div>
+
         <div class="grow">
           <div class="card">
             <h4>Item Preview</h4>
@@ -148,31 +148,33 @@
               </div>
             </div>
             <div class="hr"></div>
-            <div class="grid">
-              <label>Item Name</label>
-              <input id="prevNameEdit" placeholder="Required when creating a new barcode"/>
-              <div class="row">
-                <div>
-                  <label>Unit</label>
-                  <input id="prevUnit" placeholder="box, pkt, ea…"/>
-                </div>
-                <div>
-                  <label>Pack Size</label>
-                  <input id="prevPack" placeholder="e.g. 100s"/>
-                </div>
+            <div class="row">
+              <div>
+                <label>Item Name</label>
+                <input id="prevNameEdit" placeholder="Required for new items"/>
               </div>
-              <div class="row">
-                <div>
-                  <label>Minimum Qty (reorder)</label>
-                  <input id="prevMinQty" type="number" step="0.001" placeholder="e.g. 2"/>
-                </div>
-                <div>
-                  <label>Photo</label>
-                  <input id="prevPhoto" type="file" accept="image/*" />
-                </div>
+              <div>
+                <label>Photo</label>
+                <input id="prevPhoto" type="file" accept="image/*" />
               </div>
-              <button id="btnSaveItem" class="ghost">Save / Update Item</button>
             </div>
+            <div class="row">
+              <div>
+                <label>Unit</label>
+                <input id="prevUnit" placeholder="box, pkt, ea…"/>
+              </div>
+              <div>
+                <label>Pack Size</label>
+                <input id="prevPack" placeholder="e.g. 100s"/>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Minimum Qty (reorder)</label>
+                <input id="prevMinQty" type="number" step="0.001" placeholder="e.g. 2"/>
+              </div>
+            </div>
+            <button id="btnSaveItem" class="ghost">Save / Update Item</button>
           </div>
         </div>
       </div>
@@ -182,7 +184,7 @@
     <section id="tab-catalogue" class="card hidden">
       <div class="split">
         <h3>Catalogue</h3>
-        <div class="right row" style="width:420px;">
+        <div class="row" style="width:420px;">
           <input id="catSearch" placeholder="Search name or barcode…" />
           <button id="btnAddNew" class="ghost">New</button>
         </div>
@@ -192,8 +194,7 @@
         <table id="catTable">
           <thead><tr>
             <th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Min Qty</th><th>Stock</th>
-          </tr></thead>
-          <tbody></tbody>
+          </tr></thead><tbody></tbody>
         </table>
       </div>
     </section>
@@ -210,22 +211,21 @@
           </select>
         </div>
       </div>
-      <p class="hint">Items below their Minimum Qty, or lots nearing expiry.</p>
+      <p class="muted">Shows items below Minimum Qty and/or expiring within ~1 month.</p>
       <div class="hr"></div>
       <div id="reTableWrap" style="max-height:520px; overflow:auto;">
         <table id="reTable">
           <thead><tr>
             <th>Barcode</th><th>Name</th><th>Stock</th><th>Min Qty</th><th>Nearest Expiry</th><th>Status</th>
-          </tr></thead>
-          <tbody></tbody>
+          </tr></thead><tbody></tbody>
         </table>
       </div>
     </section>
 
-    <!-- REPORTS (simple snapshot) -->
+    <!-- REPORTS -->
     <section id="tab-reports" class="card hidden">
       <h3>Reports</h3>
-      <div id="repSummary" class="grid"></div>
+      <div id="repSummary" class="row-3"></div>
     </section>
 
     <!-- DEBUG -->
@@ -244,29 +244,33 @@
     <div class="dialog-body">
       <div class="split">
         <h3>Scan Barcode</h3>
-        <button id="btnCloseScan" class="ghost right">Close</button>
+        <button id="btnCloseScan" class="ghost" style="margin-left:auto;">Close</button>
       </div>
-      <div class="grid">
-        <video id="video" playsinline style="width:100%; border-radius:12px; border:1px solid var(--border); background:#000; aspect-ratio: 3/4;"></video>
-        <p class="hint">Point the camera at the barcode. Works on iPhone/iPad and Android.</p>
-      </div>
+      <video id="video" playsinline style="width:100%; border-radius:12px; border:1px solid var(--border); background:#000; aspect-ratio: 3/4;"></video>
+      <p class="muted">Use rear camera when available.</p>
     </div>
   </dialog>
 
-  <!-- Sticky “Show Debug” button at the bottom -->
+  <!-- Sticky “Show Debug” button at the bottom (replaces header Sign out) -->
   <div class="sticky-bottom">
-    <button id="btnToggleDebug" class="pill">Show Debug</button>
+    <button id="btnToggleDebug" class="tab">Show Debug</button>
   </div>
 
+  <!-- APP SCRIPT (module ok; relies on UMD globals loaded above) -->
   <script type="module">
-    // --- CONFIG (update these) ---
+    // ---------- CONFIG ----------
     const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
-    const REDIRECT_URL  = location.origin + location.pathname; // same page redirect
+    const REDIRECT_URL  = location.origin + location.pathname;
 
-    // --- INIT ---
+    // ---------- INIT (UMD global) ----------
+    if (!window.supabase || !window.supabase.createClient) {
+      alert('Supabase library failed to load. Check the <script> tag order.');
+      throw new Error('Supabase UMD not available');
+    }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-    const $ = (q) => document.querySelector(q);
+
+    const $  = (q) => document.querySelector(q);
     const $$ = (q) => Array.from(document.querySelectorAll(q));
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
     const toISOFromDDMMYYYY = (s) => {
@@ -278,67 +282,65 @@
       return isNaN(iso) ? null : iso.toISOString().slice(0,10);
     };
 
-    // Tabs (default => transactions)
+    // ---------- TABS ----------
     const tabs = [
       { id:'transactions', label:'Transactions' },
       { id:'catalogue',    label:'Catalogue' },
       { id:'reorder',      label:'Re-ordering' },
       { id:'reports',      label:'Reports' },
     ];
-    let activeTab = 'transactions';
+    let activeTab = 'transactions'; // default tab
 
     function renderTabs() {
-      const el = $('#tabs');
-      el.innerHTML = '';
+      const el = $('#tabs'); el.innerHTML = '';
       for (const t of tabs) {
         const b = document.createElement('button');
         b.className = 'tab' + (t.id===activeTab ? ' active':'');
         b.textContent = t.label;
-        b.addEventListener('click', () => {
-          activeTab = t.id;
-          updateTabUI();
-        });
+        b.addEventListener('click', () => { activeTab = t.id; updateTabUI(); });
         el.appendChild(b);
       }
       updateTabUI();
     }
     function updateTabUI() {
-      for (const t of tabs) {
-        const sec = $('#tab-' + t.id);
-        if (sec) sec.classList.toggle('hidden', t.id!==activeTab);
-      }
+      for (const t of tabs) $('#tab-'+t.id).classList.toggle('hidden', t.id!==activeTab);
       $$('#tabs .tab').forEach(btn => btn.classList.toggle('active', btn.textContent === tabs.find(x=>x.id===activeTab)?.label));
     }
 
-    // Debug toggle pinned at bottom
+    // ---------- DEBUG ----------
+    function logDebug(obj) {
+      const el = $('#debugOut');
+      el.textContent = JSON.stringify(obj, null, 2) + '\n\n' + el.textContent;
+    }
     $('#btnToggleDebug').addEventListener('click', () => {
-      const show = $('#debugSection').classList.toggle('hidden');
-      $('#btnToggleDebug').textContent = show ? 'Hide Debug' : 'Show Debug';
+      const hidden = $('#debugSection').classList.toggle('hidden');
+      $('#btnToggleDebug').textContent = hidden ? 'Show Debug' : 'Hide Debug';
+    });
+    $('#btnResetSession').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    });
+    $('#btnWhoami').addEventListener('click', async () => {
+      const u = await supabase.auth.getUser(); logDebug(u);
     });
 
-    // --- AUTH ---
+    // ---------- AUTH ----------
     async function ensureProfile(user) {
-      // Upsert basic profile
       await supabase.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
     }
-
     async function showAppOrAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data:{ user } } = await supabase.auth.getUser();
       if (!user) {
         $('#authSection').classList.remove('hidden');
-        $('main').classList.remove('hidden');
         $('#whoami').textContent = '';
       } else {
         $('#authSection').classList.add('hidden');
-        $('main').classList.remove('hidden');
         $('#whoami').textContent = user.email ?? '';
         await ensureProfile(user);
         renderTabs();
         await refreshAll();
       }
     }
-
-    // Auth UI
     $('#btnGoogle').addEventListener('click', async () => {
       await supabase.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: REDIRECT_URL } });
     });
@@ -348,47 +350,29 @@
       const { error } = await supabase.auth.signInWithOtp({ email, options:{ emailRedirectTo: REDIRECT_URL } });
       if (error) alert(error.message); else alert('Magic link sent!');
     });
-    $('#btnResetSession').addEventListener('click', async () => {
-      await supabase.auth.signOut(); // keep sign-out only here for debugging
-      location.reload();
-    });
-    $('#btnWhoami').addEventListener('click', async () => {
-      const u = await supabase.auth.getUser();
-      logDebug(u);
-    });
 
-    // --- ZXing Scanner (iPhone compatible) ---
+    // ---------- SCANNER (ZXing UMD) ----------
     let codeReader;
     const scanModal = $('#scanModal');
-    const videoEl = $('#video');
-
+    const videoEl   = $('#video');
     async function startScan() {
-      if (!codeReader) {
-        codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-      }
+      if (!codeReader) codeReader = new ZXingBrowser.BrowserMultiFormatReader();
       try {
-        // Prefer back camera
         const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
         const back = devices.find(d => /back|rear|environment/i.test(d.label))?.deviceId ?? devices?.[0]?.deviceId;
-        await codeReader.decodeFromVideoDevice(back, videoEl, (result, err, controls) => {
+        await codeReader.decodeFromVideoDevice(back, videoEl, (result) => {
           if (result) {
             $('#trxBarcode').value = result.getText();
-            stopScan();
-            scanModal.close();
-            handleBarcodeEntered();
+            stopScan(); scanModal.close(); handleBarcodeEntered();
           }
         });
-      } catch (e) {
-        alert('Camera error: ' + e.message);
-      }
+      } catch (e) { alert('Camera error: ' + e.message); }
     }
-    function stopScan() {
-      try { codeReader?.reset(); } catch {}
-    }
+    function stopScan() { try { codeReader?.reset(); } catch {} }
     $('#btnScan').addEventListener('click', () => { scanModal.showModal(); startScan(); });
     $('#btnCloseScan').addEventListener('click', () => { stopScan(); scanModal.close(); });
 
-    // --- STORAGE (photos) ---
+    // ---------- STORAGE (photos) ----------
     async function uploadPhoto(file, barcode) {
       if (!file) return null;
       const ext = file.name.split('.').pop() || 'jpg';
@@ -399,19 +383,17 @@
       return pub.publicUrl;
     }
 
-    // --- DATA HELPERS ---
-    let cacheItems = []; // {id, barcode, name, unit, pack_size, min_qty, photo_url, stock_qty}
-    let cacheLots  = []; // for expiry nearest
+    // ---------- DATA ----------
+    let cacheItems = []; // from v_stock_per_item
+    let cacheLots  = []; // from v_stock_per_lot
 
     async function fetchStockPerItem() {
       const { data, error } = await supabase.from('v_stock_per_item').select('*').order('name', { ascending: true });
-      if (error) throw error;
-      return data;
+      if (error) throw error; return data;
     }
     async function fetchLots() {
       const { data, error } = await supabase.from('v_stock_per_lot').select('*');
-      if (error) throw error;
-      return data;
+      if (error) throw error; return data;
     }
     function nearestExpiryForItem(itemId) {
       const lots = cacheLots.filter(l => l.item_id === itemId && l.expiry_date);
@@ -419,20 +401,7 @@
       return lots.sort((a,b) => new Date(a.expiry_date) - new Date(b.expiry_date))[0].expiry_date;
     }
 
-    // --- TRANSACTIONS UI ---
-    async function handleBarcodeEntered() {
-      const code = $('#trxBarcode').value.trim();
-      if (!code) return;
-      const item = cacheItems.find(x => x.barcode === code);
-      if (item) {
-        fillPreview(item);
-      } else {
-        // new barcode → prepare preview with ability to name & save
-        fillPreview({ id:null, barcode:code, name:'', unit:'', pack_size:'', min_qty:0, photo_url:null, stock_qty:0 });
-      }
-    }
-    $('#trxBarcode').addEventListener('change', handleBarcodeEntered);
-
+    // ---------- TRANSACTIONS ----------
     function fillPreview(item) {
       $('#prevImg').src = item.photo_url || '';
       $('#prevName').textContent = item.name || '(New item)';
@@ -443,45 +412,42 @@
       $('#prevPack').value = item.pack_size ?? '';
       $('#prevMinQty').value = item.min_qty ?? 0;
       $('#prevPhoto').value = '';
-      // keep an attribute for current selection
       $('#prevNameEdit').dataset.itemId = item.id || '';
     }
+    async function handleBarcodeEntered() {
+      const code = $('#trxBarcode').value.trim();
+      if (!code) return;
+      const item = cacheItems.find(x => x.barcode === code);
+      if (item) fillPreview(item);
+      else fillPreview({ id:null, barcode:code, name:'', unit:'', pack_size:'', min_qty:0, photo_url:null, stock_qty:0 });
+    }
+    $('#trxBarcode').addEventListener('change', handleBarcodeEntered);
 
     $('#btnSaveItem').addEventListener('click', async () => {
       const barcode = $('#trxBarcode').value.trim() || prompt('Enter barcode for this item');
       if (!barcode) return;
-
       const name = $('#prevNameEdit').value.trim();
-      if (!name) return alert('Item name is required for new items.');
-
+      if (!name) return alert('Item name is required.');
       const unit = $('#prevUnit').value.trim();
       const pack = $('#prevPack').value.trim();
       const minq = Number($('#prevMinQty').value || 0);
       const photoFile = $('#prevPhoto').files[0];
       let photoUrl = null;
-
       if (photoFile) {
         try { photoUrl = await uploadPhoto(photoFile, barcode); }
         catch (e) { return alert('Photo upload failed: ' + e.message); }
       }
-
-      // upsert catalogue
       const payload = { barcode, name, unit, pack_size: pack, min_qty: minq };
       if (photoUrl) payload.photo_url = photoUrl;
 
       const existing = cacheItems.find(x => x.barcode === barcode);
       let q;
-      if (existing) {
-        q = supabase.from('catalogue').update(payload).eq('id', existing.id).select();
-      } else {
-        q = supabase.from('catalogue').insert(payload).select();
-      }
+      if (existing) q = supabase.from('catalogue').update(payload).eq('id', existing.id).select();
+      else          q = supabase.from('catalogue').insert(payload).select();
       const { data, error } = await q;
       if (error) return alert(error.message);
-
       await refreshAll();
-      const saved = data?.[0] || cacheItems.find(x => x.barcode === barcode);
-      if (saved) fillPreview(saved);
+      fillPreview(data?.[0] || cacheItems.find(x => x.barcode === barcode) || { barcode });
       alert('Item saved.');
     });
 
@@ -489,42 +455,35 @@
       const barcode = $('#trxBarcode').value.trim();
       if (!barcode) return alert('Enter or scan a barcode');
       const kind = $('#trxKind').value;
-      const qty = Number($('#trxQty').value || 0);
+      const qty  = Number($('#trxQty').value || 0);
       if (!qty) return alert('Enter a quantity');
 
-      // Ensure the item exists (create minimal record if needed)
       let item = cacheItems.find(x => x.barcode === barcode);
       if (!item) {
         const name = $('#prevNameEdit').value.trim();
-        if (!name) return alert('This is a new barcode. Please enter an Item Name (in the Item Preview) and click "Save / Update Item" first.');
+        if (!name) return alert('New barcode: please enter Item Name and Save Item first.');
         const unit = $('#prevUnit').value.trim();
         const pack = $('#prevPack').value.trim();
         const minq = Number($('#prevMinQty').value || 0);
-        const { data, error } = await supabase.from('catalogue').insert({
-          barcode, name, unit, pack_size: pack, min_qty: minq
-        }).select();
+        const { data, error } = await supabase.from('catalogue').insert({ barcode, name, unit, pack_size: pack, min_qty: minq }).select();
         if (error) return alert(error.message);
         item = data[0];
       }
 
-      const isoExpiry = toISOFromDDMMYYYY($('#trxExpiry').value);
       const row = {
         item_id: item.id,
         kind,
         qty,
         lot_code: $('#trxLot').value.trim() || null,
-        expiry_date: isoExpiry,
+        expiry_date: toISOFromDDMMYYYY($('#trxExpiry').value),
         unit_cost: $('#trxCost').value ? Number($('#trxCost').value) : null,
         note: $('#trxNote').value.trim() || null
       };
       const { error } = await supabase.from('inv_transactions').insert(row);
       if (error) return alert(error.message);
 
-      $('#trxQty').value = '';
-      $('#trxLot').value = '';
-      $('#trxExpiry').value = '';
-      $('#trxCost').value = '';
-      $('#trxNote').value = '';
+      $('#trxQty').value = ''; $('#trxLot').value = ''; $('#trxExpiry').value = '';
+      $('#trxCost').value = ''; $('#trxNote').value = '';
       await refreshAll();
     });
 
@@ -536,7 +495,6 @@
         .limit(50);
       if (error) throw error;
 
-      // Join with items for barcode & name
       const map = new Map(cacheItems.map(x => [x.id, x]));
       const tb = $('#trxTable tbody'); tb.innerHTML = '';
       for (const r of data) {
@@ -555,7 +513,7 @@
       }
     }
 
-    // --- CATALOGUE UI ---
+    // ---------- CATALOGUE ----------
     function renderCatalogue() {
       const q = $('#catSearch').value.trim().toLowerCase();
       const rows = !q ? cacheItems : cacheItems.filter(
@@ -575,11 +533,8 @@
         `;
         tr.style.cursor = 'pointer';
         tr.addEventListener('click', () => {
-          activeTab = 'transactions';
-          updateTabUI();
-          $('#trxBarcode').value = r.barcode;
-          fillPreview(r);
-          $('#trxQty').focus();
+          activeTab = 'transactions'; updateTabUI();
+          $('#trxBarcode').value = r.barcode; fillPreview(r); $('#trxQty').focus();
         });
         tb.appendChild(tr);
       }
@@ -592,24 +547,17 @@
       $('#trxBarcode').focus();
     });
 
-    // --- RE-ORDERING UI ---
+    // ---------- RE-ORDERING ----------
     function renderReorder() {
-      // Build a per-item nearest expiry
-      const items = cacheItems.map(it => ({
-        ...it,
-        nearestExpiry: nearestExpiryForItem(it.id)
-      }));
-
-      // Reorder candidates = below min OR has an upcoming expiry lot
-      const today = new Date();
-      const soon = new Date(); soon.setMonth(soon.getMonth() + 1); // within 1 month = "soon"
+      const items = cacheItems.map(it => ({ ...it, nearestExpiry: nearestExpiryForItem(it.id) }));
+      const soon = new Date(); soon.setMonth(soon.getMonth() + 1); // ~1 month
       const candidates = items.filter(it => {
         const belowMin = Number(it.stock_qty ?? 0) < Number(it.min_qty ?? 0);
-        const expSoon = it.nearestExpiry && new Date(it.nearestExpiry) <= soon;
+        const expSoon  = it.nearestExpiry && new Date(it.nearestExpiry) <= soon;
         return belowMin || expSoon;
       });
 
-      const mode = $('#selReorderSort').value; // 'expiry' | 'minqty'
+      const mode = $('#selReorderSort').value;
       if (mode === 'expiry') {
         candidates.sort((a,b) => {
           const ae = a.nearestExpiry ? new Date(a.nearestExpiry).getTime() : Infinity;
@@ -617,11 +565,10 @@
           return ae - be;
         });
       } else {
-        // Sort by how far below min we are (most urgent first)
         candidates.sort((a,b) => {
           const da = Number(a.min_qty||0) - Number(a.stock_qty||0);
           const db = Number(b.min_qty||0) - Number(b.stock_qty||0);
-          return db - da;
+          return db - da; // most urgent first
         });
       }
 
@@ -647,28 +594,23 @@
     }
     $('#selReorderSort').addEventListener('change', renderReorder);
 
-    // --- REPORTS ---
+    // ---------- REPORTS ----------
     function renderReports() {
       const totalSkus = cacheItems.length;
       const totalOnHand = cacheItems.reduce((s,x) => s + Number(x.stock_qty||0), 0);
       const belowMin = cacheItems.filter(x => Number(x.stock_qty||0) < Number(x.min_qty||0)).length;
-
       $('#repSummary').innerHTML = `
-        <div class="row-3">
-          <div class="card"><div class="muted">SKUs</div><div style="font-size:24px; font-weight:700;">${totalSkus}</div></div>
-          <div class="card"><div class="muted">Total On Hand</div><div style="font-size:24px; font-weight:700;">${totalOnHand}</div></div>
-          <div class="card"><div class="muted">Below Min</div><div style="font-size:24px; font-weight:700;">${belowMin}</div></div>
-        </div>
+        <div class="card"><div class="muted">SKUs</div><div style="font-size:24px; font-weight:700;">${totalSkus}</div></div>
+        <div class="card"><div class="muted">Total On Hand</div><div style="font-size:24px; font-weight:700;">${totalOnHand}</div></div>
+        <div class="card"><div class="muted">Below Min</div><div style="font-size:24px; font-weight:700;">${belowMin}</div></div>
       `;
     }
 
-    // --- REFRESH ALL ---
+    // ---------- REFRESH ----------
     async function refreshAll() {
       const [items, lots] = await Promise.all([fetchStockPerItem(), fetchLots()]);
-      cacheItems = items;
-      cacheLots  = lots;
+      cacheItems = items; cacheLots = lots;
 
-      // Ensure preview keeps current barcode if typed
       if ($('#trxBarcode').value) {
         const found = cacheItems.find(x => x.barcode === $('#trxBarcode').value.trim());
         fillPreview(found || { id:null, barcode:$('#trxBarcode').value.trim(), name:'', unit:'', pack_size:'', min_qty:0, photo_url:null, stock_qty:0 });
@@ -680,20 +622,9 @@
       await loadRecentTrx();
     }
 
-    // --- DEBUG ---
-    function logDebug(obj) {
-      const el = $('#debugOut');
-      el.textContent = JSON.stringify(obj, null, 2) + '\n\n' + el.textContent;
-    }
-    if (new URLSearchParams(location.search).get('debug') === '1') {
-      $('#debugSection').classList.remove('hidden');
-      $('#btnToggleDebug').textContent = 'Hide Debug';
-    }
-
-    // --- STARTUP ---
+    // ---------- STARTUP ----------
     window.addEventListener('load', showAppOrAuth);
-    supabase.auth.onAuthStateChange((_event, _session) => showAppOrAuth());
+    supabase.auth.onAuthStateChange(() => showAppOrAuth());
   </script>
 </body>
 </html>
-
