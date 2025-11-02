@@ -19,6 +19,7 @@
     .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
+    .row-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
     label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
     input, select { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
     button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
@@ -35,6 +36,7 @@
     .split { display:flex; gap:16px; flex-wrap:wrap; }
     .grow { flex:1 1 320px; }
     .img { width:80px; height:80px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
+    .bigimg { width:160px; height:160px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
     .hr { height:1px; background:var(--border); margin:12px 0; }
     dialog { border:0; border-radius:16px; padding:0; overflow:hidden; }
     dialog .dialog-body { padding:16px; }
@@ -42,10 +44,9 @@
     .ok { color:var(--ok); } .warn { color:#b26a00; } .danger { color:var(--danger); }
   </style>
 
-  <!-- ZXing for iPhone-friendly scanning (UMD global) -->
+  <!-- ZXing (UMD) for iPhone-friendly scanning -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js"></script>
-
-  <!-- Supabase UMD (global window.supabase) — MUST load BEFORE our app script -->
+  <!-- Supabase UMD (global window.supabase). Must load BEFORE our app script -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
 
@@ -156,6 +157,10 @@
               <div>
                 <label>Photo</label>
                 <input id="prevPhoto" type="file" accept="image/*" />
+                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button id="btnAIFromPhoto" class="ghost">AI fill from photo</button>
+                  <button id="btnCapturePhoto" class="ghost">Capture with camera</button>
+                </div>
               </div>
             </div>
             <div class="row">
@@ -228,6 +233,42 @@
       <div id="repSummary" class="row-3"></div>
     </section>
 
+    <!-- AI TEST (sandbox) -->
+    <section id="tab-lab" class="card hidden">
+      <h3>AI Product Extract (Sandbox)</h3>
+      <p class="muted">Upload or capture a packaging photo. We’ll OCR and suggest name/unit/pack size (and barcode if visible). This tab does not auto-save.</p>
+
+      <div class="row" style="margin-top:8px;">
+        <div>
+          <label>Packaging Photo</label>
+          <input id="labPhoto" type="file" accept="image/*" />
+          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="labCapture" class="ghost">Capture with camera</button>
+            <button id="labRun" class="primary">Run AI on photo</button>
+          </div>
+          <div style="margin-top:12px;">
+            <img id="labPreview" class="bigimg" alt="">
+          </div>
+        </div>
+        <div>
+          <label>Result</label>
+          <div id="labResultBox" class="card" style="min-height:140px;">
+            <div id="labStatus" class="muted">No result yet.</div>
+            <div id="labResult" class="hidden">
+              <div><strong>Name:</strong> <span id="labName">—</span></div>
+              <div><strong>Unit:</strong> <span id="labUnit">—</span></div>
+              <div><strong>Pack size:</strong> <span id="labPack">—</span></div>
+              <div><strong>Barcode:</strong> <span id="labBarcode">—</span></div>
+              <div><strong>Confidence:</strong> <span id="labConf">—</span></div>
+              <div class="hr"></div>
+              <button id="labApply" class="ghost">Apply to Item Preview</button>
+              <button id="labCreateDraft" class="ghost">Create Draft Item</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- DEBUG -->
     <section id="debugSection" class="card hidden">
       <h3>Debug Console</h3>
@@ -251,12 +292,12 @@
     </div>
   </dialog>
 
-  <!-- Sticky “Show Debug” button at the bottom (replaces header Sign out) -->
+  <!-- Sticky “Show Debug” button at the bottom -->
   <div class="sticky-bottom">
     <button id="btnToggleDebug" class="tab">Show Debug</button>
   </div>
 
-  <!-- APP SCRIPT (module ok; relies on UMD globals loaded above) -->
+  <!-- APP SCRIPT -->
   <script type="module">
     // ---------- CONFIG ----------
     const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
@@ -288,8 +329,9 @@
       { id:'catalogue',    label:'Catalogue' },
       { id:'reorder',      label:'Re-ordering' },
       { id:'reports',      label:'Reports' },
+      { id:'lab',          label:'AI Test' },
     ];
-    let activeTab = 'transactions'; // default tab
+    let activeTab = 'transactions';
 
     function renderTabs() {
       const el = $('#tabs'); el.innerHTML = '';
@@ -317,8 +359,7 @@
       $('#btnToggleDebug').textContent = hidden ? 'Show Debug' : 'Hide Debug';
     });
     $('#btnResetSession').addEventListener('click', async () => {
-      await supabase.auth.signOut();
-      location.reload();
+      await supabase.auth.signOut(); location.reload();
     });
     $('#btnWhoami').addEventListener('click', async () => {
       const u = await supabase.auth.getUser(); logDebug(u);
@@ -351,7 +392,7 @@
       if (error) alert(error.message); else alert('Magic link sent!');
     });
 
-    // ---------- SCANNER (ZXing UMD) ----------
+    // ---------- BARCODE SCANNER ----------
     let codeReader;
     const scanModal = $('#scanModal');
     const videoEl   = $('#video');
@@ -384,8 +425,8 @@
     }
 
     // ---------- DATA ----------
-    let cacheItems = []; // from v_stock_per_item
-    let cacheLots  = []; // from v_stock_per_lot
+    let cacheItems = [];
+    let cacheLots  = [];
 
     async function fetchStockPerItem() {
       const { data, error } = await supabase.from('v_stock_per_item').select('*').order('name', { ascending: true });
@@ -423,6 +464,52 @@
     }
     $('#trxBarcode').addEventListener('change', handleBarcodeEntered);
 
+    $('#btnCapturePhoto').addEventListener('click', () => {
+      const input = $('#prevPhoto');
+      input.setAttribute('capture', 'environment');
+      input.click();
+    });
+
+    // AI fill from photo (uses Edge Function)
+    async function aiSuggestFromPhoto() {
+      const file = $('#prevPhoto').files[0];
+      if (!file) { alert('Choose or capture a packaging photo first.'); return; }
+      const barcode = $('#trxBarcode').value.trim() || `temp-${Date.now()}`;
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${barcode}/ai-src-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('product_photos').upload(path, file, { upsert: true });
+      if (upErr) { alert('Upload failed: ' + upErr.message); return; }
+      const { data: pub } = supabase.storage.from('product_photos').getPublicUrl(path);
+      const image_url = pub.publicUrl;
+
+      const { data, error } = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
+      if (error) { alert('AI suggest failed: ' + (error.message || JSON.stringify(error))); return; }
+
+      if (data?.name && !$('#prevNameEdit').value) {
+        $('#prevNameEdit').value = data.name;
+        $('#prevName').textContent = data.name;
+      }
+      if (data?.unit && !$('#prevUnit').value) $('#prevUnit').value = data.unit;
+      if (data?.pack_size && !$('#prevPack').value) $('#prevPack').value = data.pack_size;
+      if (data?.barcode && !$('#trxBarcode').value) {
+        $('#trxBarcode').value = data.barcode;
+        $('#prevBarcode').textContent = data.barcode;
+      }
+      try {
+        await supabase.from('product_ai_suggestions').insert({
+          image_url,
+          suggested_name: data?.name ?? null,
+          suggested_unit: data?.unit ?? null,
+          suggested_pack_size: data?.pack_size ?? null,
+          suggested_barcode: data?.barcode ?? null,
+          confidence: data?.confidence ?? null,
+          notes: data?.notes ?? null
+        });
+      } catch {}
+      alert(data?.name ? `Suggested: ${data.name}` : 'No confident suggestion. Try a clearer photo.');
+    }
+    $('#btnAIFromPhoto').addEventListener('click', aiSuggestFromPhoto);
+
     $('#btnSaveItem').addEventListener('click', async () => {
       const barcode = $('#trxBarcode').value.trim() || prompt('Enter barcode for this item');
       if (!barcode) return;
@@ -447,7 +534,6 @@
       const { data, error } = await q;
       if (error) return alert(error.message);
       await refreshAll();
-      fillPreview(data?.[0] || cacheItems.find(x => x.barcode === barcode) || { barcode });
       alert('Item saved.');
     });
 
@@ -550,7 +636,7 @@
     // ---------- RE-ORDERING ----------
     function renderReorder() {
       const items = cacheItems.map(it => ({ ...it, nearestExpiry: nearestExpiryForItem(it.id) }));
-      const soon = new Date(); soon.setMonth(soon.getMonth() + 1); // ~1 month
+      const soon = new Date(); soon.setMonth(soon.getMonth() + 1);
       const candidates = items.filter(it => {
         const belowMin = Number(it.stock_qty ?? 0) < Number(it.min_qty ?? 0);
         const expSoon  = it.nearestExpiry && new Date(it.nearestExpiry) <= soon;
@@ -568,7 +654,7 @@
         candidates.sort((a,b) => {
           const da = Number(a.min_qty||0) - Number(a.stock_qty||0);
           const db = Number(b.min_qty||0) - Number(b.stock_qty||0);
-          return db - da; // most urgent first
+          return db - da;
         });
       }
 
@@ -606,6 +692,93 @@
       `;
     }
 
+    // ---------- AI TEST (sandbox) ----------
+    const labPhoto     = $('#labPhoto');
+    const labCapture   = $('#labCapture');
+    const labRun       = $('#labRun');
+    const labPreview   = $('#labPreview');
+    const labStatus    = $('#labStatus');
+    const labResult    = $('#labResult');
+    const labName      = $('#labName');
+    const labUnit      = $('#labUnit');
+    const labPack      = $('#labPack');
+    const labBarcode   = $('#labBarcode');
+    const labConf      = $('#labConf');
+
+    labCapture?.addEventListener('click', () => {
+      labPhoto.setAttribute('capture', 'environment');
+      labPhoto.click();
+    });
+    labPhoto?.addEventListener('change', () => {
+      const f = labPhoto.files?.[0];
+      if (!f) return;
+      labPreview.src = URL.createObjectURL(f);
+    });
+    labRun?.addEventListener('click', async () => {
+      const f = labPhoto.files?.[0];
+      if (!f) { alert('Choose or capture a packaging photo first.'); return; }
+      labStatus.textContent = 'Uploading photo…'; labResult.classList.add('hidden');
+
+      const ext = f.name.split('.').pop() || 'jpg';
+      const path = `ai-tests/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('product_photos').upload(path, f, { upsert: true });
+      if (upErr) { labStatus.textContent = 'Upload failed: ' + upErr.message; return; }
+      const { data: pub } = supabase.storage.from('product_photos').getPublicUrl(path);
+      const image_url = pub.publicUrl;
+
+      labStatus.textContent = 'Running AI extraction…';
+      const { data, error } = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
+      if (error) { labStatus.textContent = 'AI error: ' + (error.message || JSON.stringify(error)); return; }
+
+      labStatus.textContent = 'Suggestion ready.'; labResult.classList.remove('hidden');
+      labName.textContent    = data?.name || '—';
+      labUnit.textContent    = data?.unit || '—';
+      labPack.textContent    = data?.pack_size || '—';
+      labBarcode.textContent = data?.barcode || '—';
+      labConf.textContent    = (data?.confidence != null) ? String(data.confidence) : '—';
+
+      try {
+        await supabase.from('product_ai_suggestions').insert({
+          image_url,
+          suggested_name: data?.name ?? null,
+          suggested_unit: data?.unit ?? null,
+          suggested_pack_size: data?.pack_size ?? null,
+          suggested_barcode: data?.barcode ?? null,
+          confidence: data?.confidence ?? null,
+          notes: data?.notes ?? null
+        });
+      } catch {}
+    });
+
+    $('#labApply')?.addEventListener('click', () => {
+      if (labName.textContent !== '—' && !$('#prevNameEdit').value) {
+        $('#prevNameEdit').value = labName.textContent;
+        $('#prevName').textContent = labName.textContent;
+      }
+      if (labUnit.textContent !== '—' && !$('#prevUnit').value) $('#prevUnit').value = labUnit.textContent;
+      if (labPack.textContent !== '—' && !$('#prevPack').value) $('#prevPack').value = labPack.textContent;
+      if (labBarcode.textContent !== '—' && !$('#trxBarcode').value) {
+        $('#trxBarcode').value = labBarcode.textContent;
+        $('#prevBarcode').textContent = labBarcode.textContent;
+      }
+      alert('Applied to Item Preview (not saved yet).');
+    });
+    $('#labCreateDraft')?.addEventListener('click', async () => {
+      const name = (labName.textContent !== '—') ? labName.textContent : null;
+      if (!name) return alert('No product name to create a draft.');
+      const payload = {
+        name,
+        unit: (labUnit.textContent !== '—') ? labUnit.textContent : null,
+        pack_size: (labPack.textContent !== '—') ? labPack.textContent : null,
+        barcode: (labBarcode.textContent !== '—') ? labBarcode.textContent : null,
+        min_qty: 0
+      };
+      const { error } = await supabase.from('catalogue').insert(payload);
+      if (error) return alert('Create draft failed: ' + error.message);
+      await refreshAll();
+      alert('Draft item created.');
+    });
+
     // ---------- REFRESH ----------
     async function refreshAll() {
       const [items, lots] = await Promise.all([fetchStockPerItem(), fetchLots()]);
@@ -615,11 +788,7 @@
         const found = cacheItems.find(x => x.barcode === $('#trxBarcode').value.trim());
         fillPreview(found || { id:null, barcode:$('#trxBarcode').value.trim(), name:'', unit:'', pack_size:'', min_qty:0, photo_url:null, stock_qty:0 });
       }
-
-      renderCatalogue();
-      renderReorder();
-      renderReports();
-      await loadRecentTrx();
+      renderCatalogue(); renderReorder(); renderReports(); await loadRecentTrx();
     }
 
     // ---------- STARTUP ----------
