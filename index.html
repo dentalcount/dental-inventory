@@ -18,7 +18,7 @@
     header { position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; gap:12px; align-items:center; }
     header h1 { margin:0; font-size:18px; font-weight:600; }
     .tabs { display:flex; gap:8px; flex-wrap:wrap; }
-    .tab { padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:14px; }
+    .tab { padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:14px; white-space:nowrap; }
     .tab.active { background:var(--brand); color:#fff; border-color:var(--brand); }
     main { padding:16px; max-width:1100px; margin:0 auto; }
     .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); margin-bottom:14px; }
@@ -51,6 +51,17 @@
     dialog::backdrop { background:rgba(0,0,0,0.3); }
     .ok { color:var(--ok); } .warn { color:var(--warn); } .danger { color:var(--danger); }
     .right { margin-left:auto; }
+
+    /* ---------- Mobile layout tweaks ---------- */
+    @media (max-width: 768px) {
+      header { flex-wrap:wrap; align-items:flex-start; }
+      header h1 { width:100%; margin-bottom:4px; }
+      .tabs { width:100%; overflow-x:auto; padding-bottom:4px; }
+      .row, .row-3, .row-4 { grid-template-columns: 1fr; }
+      .split { flex-direction:column; }
+      main { padding:10px; }
+      th, td { font-size:13px; padding:8px; }
+    }
   </style>
 
   <!-- ZXing (UMD) for iPhone-friendly scanning -->
@@ -86,211 +97,214 @@
       <p class="muted">We use your email to link your clinic data.</p>
     </section>
 
-    <!-- ===== TRANSACTIONS (default) ===== -->
-    <section id="tab-transactions" class="card hidden">
-      <h3>Transactions</h3>
-      <div class="split">
-        <div class="grow">
-          <div class="row">
-            <div>
-              <label>Scan / Enter Barcode</label>
-              <div class="row">
-                <input id="trxBarcode" placeholder="Scan or type barcode…" inputmode="numeric" />
-                <button id="btnScan" class="ghost">Scan</button>
+    <!-- ===== APP SHELL (only visible after login) ===== -->
+    <div id="appShell" class="hidden">
+      <!-- ===== TRANSACTIONS (default) ===== -->
+      <section id="tab-transactions" class="card hidden">
+        <h3>Transactions</h3>
+        <div class="split">
+          <div class="grow">
+            <div class="row">
+              <div>
+                <label>Scan / Enter Barcode</label>
+                <div class="row">
+                  <input id="trxBarcode" placeholder="Scan or type barcode…" inputmode="numeric" />
+                  <button id="btnScan" class="ghost">Scan</button>
+                </div>
+                <p class="muted">iPhone scanning supported via camera plugin (ZXing).</p>
               </div>
-              <p class="muted">iPhone scanning supported via camera plugin (ZXing).</p>
+              <div>
+                <label>Kind</label>
+                <select id="trxKind">
+                  <option value="IN">IN</option>
+                  <option value="OUT">OUT</option>
+                  <option value="ADJUST">ADJUST</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Quantity</label>
+                <input id="trxQty" type="number" step="0.001" placeholder="e.g. 1, 2.5"/>
+              </div>
+              <div>
+                <label>Unit Cost (optional)</label>
+                <input id="trxCost" type="number" step="0.01" placeholder="e.g. 12.90"/>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label>Lot Code (optional)</label>
+                <input id="trxLot" placeholder="LOT/Batch"/>
+              </div>
+              <div>
+                <label>Expiry Date (optional)</label>
+                <input id="trxExpiry" placeholder="dd/mm/yyyy" />
+              </div>
             </div>
             <div>
-              <label>Kind</label>
-              <select id="trxKind">
-                <option value="IN">IN</option>
-                <option value="OUT">OUT</option>
-                <option value="ADJUST">ADJUST</option>
-              </select>
+              <label>Note</label>
+              <input id="trxNote" placeholder="Free text note"/>
+            </div>
+            <div style="margin-top:12px;">
+              <button id="btnSaveTrx" class="primary">Save Transaction</button>
+            </div>
+            <div class="hr"></div>
+            <h4>Recent Transactions</h4>
+            <div id="trxTableWrap" style="max-height:360px; overflow:auto;">
+              <table id="trxTable">
+                <thead><tr>
+                  <th>When</th><th>Barcode</th><th>Name</th><th>Kind</th><th>Qty</th><th>Lot</th><th>Expiry</th><th>Note</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
             </div>
           </div>
-          <div class="row">
-            <div>
-              <label>Quantity</label>
-              <input id="trxQty" type="number" step="0.001" placeholder="e.g. 1, 2.5"/>
-            </div>
-            <div>
-              <label>Unit Cost (optional)</label>
-              <input id="trxCost" type="number" step="0.01" placeholder="e.g. 12.90"/>
+
+          <div class="grow">
+            <div class="card">
+              <h4>Item Preview</h4>
+              <div class="row">
+                <img id="prevImg" class="img" alt="">
+                <div>
+                  <div><strong id="prevName">—</strong></div>
+                  <div class="muted" id="prevBarcode">—</div>
+                  <div id="prevStock" class="badge">Stock: —</div>
+                </div>
+              </div>
+              <div class="hr"></div>
+              <div class="row">
+                <div>
+                  <label>Item Name</label>
+                  <input id="prevNameEdit" placeholder="Required for new items"/>
+                </div>
+                <div>
+                  <label>Photo</label>
+                  <input id="prevPhoto" type="file" accept="image/*" />
+                  <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+                    <button id="btnAIFromPhoto" class="ghost">AI fill from photo</button>
+                    <button id="btnCapturePhoto" class="ghost">Capture with camera</button>
+                  </div>
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label>Unit</label>
+                  <input id="prevUnit" placeholder="box, pkt, ea…"/>
+                </div>
+                <div>
+                  <label>Pack Size</label>
+                  <input id="prevPack" placeholder="e.g. 100s"/>
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label>Minimum Qty (reorder)</label>
+                  <input id="prevMinQty" type="number" step="0.001" placeholder="e.g. 2"/>
+                </div>
+              </div>
+              <button id="btnSaveItem" class="ghost">Save / Update Item</button>
             </div>
           </div>
-          <div class="row">
-            <div>
-              <label>Lot Code (optional)</label>
-              <input id="trxLot" placeholder="LOT/Batch"/>
+        </div>
+      </section>
+
+      <!-- ===== CATALOGUE ===== -->
+      <section id="tab-catalogue" class="card hidden">
+        <div class="split">
+          <h3>Catalogue</h3>
+          <div class="row" style="width:420px;">
+            <input id="catSearch" placeholder="Search name or barcode…" />
+            <button id="btnAddNew" class="ghost">New</button>
+          </div>
+        </div>
+        <div class="hr"></div>
+        <div id="catTableWrap" style="max-height:520px; overflow:auto;">
+          <table id="catTable">
+            <thead><tr>
+              <th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Min Qty</th><th>Stock</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== RE-ORDERING ===== -->
+      <section id="tab-reorder" class="card hidden">
+        <div class="split">
+          <h3>Re-ordering</h3>
+          <div class="row" style="width:420px;">
+            <label for="selReorderSort" class="muted" style="align-self:center;">Sort by</label>
+            <select id="selReorderSort">
+              <option value="expiry">Expiry (soonest first)</option>
+              <option value="minqty">Minimum Quantity (most urgent first)</option>
+            </select>
+          </div>
+        </div>
+        <p class="muted">Shows items below Minimum Qty and/or expiring within ~1 month.</p>
+        <div class="hr"></div>
+        <div id="reTableWrap" style="max-height:520px; overflow:auto;">
+          <table id="reTable">
+            <thead><tr>
+              <th>Barcode</th><th>Name</th><th>Stock</th><th>Min Qty</th><th>Nearest Expiry</th><th>Status</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== REPORTS ===== -->
+      <section id="tab-reports" class="card hidden">
+        <h3>Reports</h3>
+        <div id="repSummary" class="row-3"></div>
+      </section>
+
+      <!-- ===== AI TEST (Sandbox) ===== -->
+      <section id="tab-lab" class="card hidden">
+        <h3>AI Product Extract (Sandbox)</h3>
+        <p class="muted">Upload or capture a packaging photo. We’ll OCR and suggest name/unit/pack size (and barcode if visible). This tab does not auto-save.</p>
+
+        <div class="row" style="margin-top:8px;">
+          <div>
+            <label>Packaging Photo</label>
+            <input id="labPhoto" type="file" accept="image/*" />
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="labCapture" class="ghost">Capture with camera</button>
+              <button id="labRun" class="primary">Run AI on photo</button>
             </div>
-            <div>
-              <label>Expiry Date (optional)</label>
-              <input id="trxExpiry" placeholder="dd/mm/yyyy" />
+            <div style="margin-top:12px;">
+              <img id="labPreview" class="bigimg" alt="">
             </div>
           </div>
           <div>
-            <label>Note</label>
-            <input id="trxNote" placeholder="Free text note"/>
-          </div>
-          <div style="margin-top:12px;">
-            <button id="btnSaveTrx" class="primary">Save Transaction</button>
-          </div>
-          <div class="hr"></div>
-          <h4>Recent Transactions</h4>
-          <div id="trxTableWrap" style="max-height:360px; overflow:auto;">
-            <table id="trxTable">
-              <thead><tr>
-                <th>When</th><th>Barcode</th><th>Name</th><th>Kind</th><th>Qty</th><th>Lot</th><th>Expiry</th><th>Note</th>
-              </tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="grow">
-          <div class="card">
-            <h4>Item Preview</h4>
-            <div class="row">
-              <img id="prevImg" class="img" alt="">
-              <div>
-                <div><strong id="prevName">—</strong></div>
-                <div class="muted" id="prevBarcode">—</div>
-                <div id="prevStock" class="badge">Stock: —</div>
+            <label>Result</label>
+            <div id="labResultBox" class="card" style="min-height:140px;">
+              <div id="labStatus" class="muted">No result yet.</div>
+              <div id="labResult" class="hidden">
+                <div><strong>Name:</strong> <span id="labName">—</span></div>
+                <div><strong>Unit:</strong> <span id="labUnit">—</span></div>
+                <div><strong>Pack size:</strong> <span id="labPack">—</span></div>
+                <div><strong>Barcode:</strong> <span id="labBarcode">—</span></div>
+                <div><strong>Confidence:</strong> <span id="labConf">—</span></div>
+                <div class="hr"></div>
+                <button id="labApply" class="ghost">Apply to Item Preview</button>
+                <button id="labCreateDraft" class="ghost">Create Draft Item</button>
               </div>
             </div>
-            <div class="hr"></div>
-            <div class="row">
-              <div>
-                <label>Item Name</label>
-                <input id="prevNameEdit" placeholder="Required for new items"/>
-              </div>
-              <div>
-                <label>Photo</label>
-                <input id="prevPhoto" type="file" accept="image/*" />
-                <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                  <button id="btnAIFromPhoto" class="ghost">AI fill from photo</button>
-                  <button id="btnCapturePhoto" class="ghost">Capture with camera</button>
-                </div>
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label>Unit</label>
-                <input id="prevUnit" placeholder="box, pkt, ea…"/>
-              </div>
-              <div>
-                <label>Pack Size</label>
-                <input id="prevPack" placeholder="e.g. 100s"/>
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label>Minimum Qty (reorder)</label>
-                <input id="prevMinQty" type="number" step="0.001" placeholder="e.g. 2"/>
-              </div>
-            </div>
-            <button id="btnSaveItem" class="ghost">Save / Update Item</button>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ===== CATALOGUE ===== -->
-    <section id="tab-catalogue" class="card hidden">
-      <div class="split">
-        <h3>Catalogue</h3>
-        <div class="row" style="width:420px;">
-          <input id="catSearch" placeholder="Search name or barcode…" />
-          <button id="btnAddNew" class="ghost">New</button>
+      <!-- ===== DEBUG ===== -->
+      <section id="debugSection" class="card hidden">
+        <h3>Debug Console</h3>
+        <pre id="debugOut" style="white-space:pre-wrap;"></pre>
+        <div class="row">
+          <button id="btnResetSession" class="ghost">Reset Session</button>
+          <button id="btnWhoami" class="ghost">Who am I?</button>
         </div>
-      </div>
-      <div class="hr"></div>
-      <div id="catTableWrap" style="max-height:520px; overflow:auto;">
-        <table id="catTable">
-          <thead><tr>
-            <th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Min Qty</th><th>Stock</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ===== RE-ORDERING ===== -->
-    <section id="tab-reorder" class="card hidden">
-      <div class="split">
-        <h3>Re-ordering</h3>
-        <div class="row" style="width:420px;">
-          <label for="selReorderSort" class="muted" style="align-self:center;">Sort by</label>
-          <select id="selReorderSort">
-            <option value="expiry">Expiry (soonest first)</option>
-            <option value="minqty">Minimum Quantity (most urgent first)</option>
-          </select>
-        </div>
-      </div>
-      <p class="muted">Shows items below Minimum Qty and/or expiring within ~1 month.</p>
-      <div class="hr"></div>
-      <div id="reTableWrap" style="max-height:520px; overflow:auto;">
-        <table id="reTable">
-          <thead><tr>
-            <th>Barcode</th><th>Name</th><th>Stock</th><th>Min Qty</th><th>Nearest Expiry</th><th>Status</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ===== REPORTS ===== -->
-    <section id="tab-reports" class="card hidden">
-      <h3>Reports</h3>
-      <div id="repSummary" class="row-3"></div>
-    </section>
-
-    <!-- ===== AI TEST (Sandbox) ===== -->
-    <section id="tab-lab" class="card hidden">
-      <h3>AI Product Extract (Sandbox)</h3>
-      <p class="muted">Upload or capture a packaging photo. We’ll OCR and suggest name/unit/pack size (and barcode if visible). This tab does not auto-save.</p>
-
-      <div class="row" style="margin-top:8px;">
-        <div>
-          <label>Packaging Photo</label>
-          <input id="labPhoto" type="file" accept="image/*" />
-          <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-            <button id="labCapture" class="ghost">Capture with camera</button>
-            <button id="labRun" class="primary">Run AI on photo</button>
-          </div>
-          <div style="margin-top:12px;">
-            <img id="labPreview" class="bigimg" alt="">
-          </div>
-        </div>
-        <div>
-          <label>Result</label>
-          <div id="labResultBox" class="card" style="min-height:140px;">
-            <div id="labStatus" class="muted">No result yet.</div>
-            <div id="labResult" class="hidden">
-              <div><strong>Name:</strong> <span id="labName">—</span></div>
-              <div><strong>Unit:</strong> <span id="labUnit">—</span></div>
-              <div><strong>Pack size:</strong> <span id="labPack">—</span></div>
-              <div><strong>Barcode:</strong> <span id="labBarcode">—</span></div>
-              <div><strong>Confidence:</strong> <span id="labConf">—</span></div>
-              <div class="hr"></div>
-              <button id="labApply" class="ghost">Apply to Item Preview</button>
-              <button id="labCreateDraft" class="ghost">Create Draft Item</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== DEBUG ===== -->
-    <section id="debugSection" class="card hidden">
-      <h3>Debug Console</h3>
-      <pre id="debugOut" style="white-space:pre-wrap;"></pre>
-      <div class="row">
-        <button id="btnResetSession" class="ghost">Reset Session</button>
-        <button id="btnWhoami" class="ghost">Who am I?</button>
-      </div>
-    </section>
+      </section>
+    </div> <!-- /appShell -->
   </main>
 
   <!-- Scanner Modal -->
@@ -317,7 +331,6 @@
     const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnam9hZHNlZnBjaXh2bXRodGZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMDIyMjYsImV4cCI6MjA3NDU3ODIyNn0.UcmAuHzEtKZIBs0pGkcLyRIYcLzCA4tNfuuDkUVLpU8';
     const REDIRECT_URL  = location.origin + location.pathname;
 
-    // ---------- INIT (UMD global) ----------
     if (!window.supabase || !window.supabase.createClient) {
       alert('Supabase library failed to load. Check the <script> tag order.');
       throw new Error('Supabase UMD not available');
@@ -350,6 +363,7 @@
       { id:'lab',          label:'AI Test' },
     ];
     let activeTab = 'transactions';
+
     function renderTabs() {
       const el = $('#tabs'); el.innerHTML = '';
       for (const t of tabs) {
@@ -362,10 +376,11 @@
       updateTabUI();
     }
     function updateTabUI() {
-      for (const t of tabs) $('#tab-'+t.id).classList.toggle('hidden', t.id!==activeTab);
-      $$('#tabs .tab').forEach(btn => btn.classList.toggle('active', btn.textContent === tabs.find(x=>x.id===activeTab)?.label));
+      for (const t of tabs) $('#tab-'+t.id)?.classList.toggle('hidden', t.id!==activeTab);
+      $$('#tabs .tab').forEach(btn =>
+        btn.classList.toggle('active', btn.textContent === tabs.find(x=>x.id===activeTab)?.label)
+      );
     }
-    renderTabs();
 
     // ---------- DEBUG ----------
     $('#btnToggleDebug').addEventListener('click', () => {
@@ -383,18 +398,31 @@
     async function ensureProfile(user) {
       await supabase.from('profiles').upsert({ id: user.id, email: user.email }, { onConflict: 'id' });
     }
+
     async function showAppOrAuth() {
       const { data:{ user } } = await supabase.auth.getUser();
+
       if (!user) {
+        // show login, hide app
         $('#authSection').classList.remove('hidden');
         $('#whoami').textContent = '';
+        $('#appShell').classList.add('hidden');
+        $('#tabs').innerHTML = '';
+        tabs.forEach(t => $('#tab-'+t.id)?.classList.add('hidden'));
       } else {
         $('#authSection').classList.add('hidden');
         $('#whoami').textContent = user.email ?? '';
+        $('#appShell').classList.remove('hidden');
+
+        if (!$('#tabs').children.length) {
+          activeTab = 'transactions';
+          renderTabs();
+        }
         await ensureProfile(user);
         await refreshAll();
       }
     }
+
     $('#btnGoogle').addEventListener('click', async () => {
       await supabase.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: REDIRECT_URL } });
     });
@@ -438,8 +466,8 @@
     }
 
     // ---------- DATA CACHE ----------
-    let cacheItems = []; // {id, barcode, name, unit, pack_size, min_qty, photo_url, stock_qty}
-    let cacheLots  = []; // for expiry nearest
+    let cacheItems = [];
+    let cacheLots  = [];
 
     async function fetchStockPerItem() {
       const { data, error } = await supabase.from('v_stock_per_item').select('*').order('name', { ascending: true });
@@ -470,6 +498,7 @@
       $('#prevPhoto').value = '';
       $('#prevNameEdit').dataset.itemId = item.id || '';
     }
+
     async function handleBarcodeEntered() {
       const code = $('#trxBarcode').value.trim();
       if (!code) return;
@@ -489,6 +518,7 @@
     async function aiSuggestFromPhoto() {
       const file = $('#prevPhoto').files[0];
       if (!file) { alert('Choose or capture a packaging photo first.'); return; }
+
       const barcode = $('#trxBarcode').value.trim() || `temp-${Date.now()}`;
       const ext = file.name.split('.').pop() || 'jpg';
       const path = `${barcode}/ai-src-${Date.now()}.${ext}`;
@@ -497,8 +527,20 @@
       const { data: pub } = supabase.storage.from('product_photos').getPublicUrl(path);
       const image_url = pub.publicUrl;
 
-      const { data, error } = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
-      if (error) { alert('AI suggest failed: ' + (error.message || JSON.stringify(error))); return; }
+      let data, error;
+      try {
+        const resp = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
+        data = resp.data; error = resp.error;
+      } catch (e) {
+        logDebug({ edge_error: String(e) });
+        alert('AI error: could not reach edge function (check it is deployed and VISION_API_KEY is set).');
+        return;
+      }
+      if (error) {
+        logDebug({ edge_error: error });
+        alert('AI error: ' + (error.message || JSON.stringify(error)));
+        return;
+      }
 
       if (data?.name && !$('#prevNameEdit').value) { $('#prevNameEdit').value = data.name; $('#prevName').textContent = data.name; }
       if (data?.unit && !$('#prevUnit').value) $('#prevUnit').value = data.unit;
@@ -738,8 +780,21 @@
       const image_url = pub.publicUrl;
 
       labStatus.textContent = 'Running AI extraction…';
-      const { data, error } = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
-      if (error) { labStatus.textContent = 'AI error: ' + (error.message || JSON.stringify(error)); return; }
+
+      let data, error;
+      try {
+        const resp = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
+        data = resp.data; error = resp.error;
+      } catch (e) {
+        logDebug({ edge_error: String(e) });
+        labStatus.textContent = 'AI error: could not reach edge function (check deploy + VISION_API_KEY).';
+        return;
+      }
+      if (error) {
+        logDebug({ edge_error: error });
+        labStatus.textContent = 'AI error: ' + (error.message || JSON.stringify(error));
+        return;
+      }
 
       labStatus.textContent = 'Suggestion ready.'; labResult.classList.remove('hidden');
       labName.textContent    = data?.name || '—';
