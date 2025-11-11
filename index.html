@@ -6,8 +6,13 @@
   <title>Dental Inventory App</title>
   <link rel="icon" href="data:,"><!-- silence favicon 404 -->
 
+  <!-- ================== STYLES ================== -->
   <style>
-    :root { --bg:#f7f7fb; --card:#fff; --text:#111; --muted:#667; --brand:#1a73e8; --danger:#c62828; --ok:#2e7d32; --border:#e5e7eb; }
+    :root {
+      --bg:#f7f7fb; --card:#fff; --text:#111; --muted:#667;
+      --brand:#1a73e8; --danger:#c62828; --ok:#2e7d32; --border:#e5e7eb;
+      --warn:#b26a00;
+    }
     * { box-sizing: border-box; }
     body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:var(--text); }
     header { position:sticky; top:0; z-index:10; background:var(--card); border-bottom:1px solid var(--border); padding:12px 16px; display:flex; gap:12px; align-items:center; }
@@ -16,12 +21,14 @@
     .tab { padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:#fff; cursor:pointer; font-size:14px; }
     .tab.active { background:var(--brand); color:#fff; border-color:var(--brand); }
     main { padding:16px; max-width:1100px; margin:0 auto; }
-    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,.03); margin-bottom:14px; }
     .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
     .row-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; }
     .row-4 { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
+    .split { display:flex; gap:16px; flex-wrap:wrap; }
+    .grow { flex:1 1 320px; }
     label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
-    input, select { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
+    input, select, textarea { width:100%; padding:10px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; }
     button { padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:#fff; cursor:pointer; }
     button.primary { background:var(--brand); color:#fff; border-color:var(--brand); }
     button.ghost { background:#fff; }
@@ -30,18 +37,20 @@
     th { background:#fafafa; position:sticky; top:0; z-index:1; }
     .muted { color:var(--muted); }
     .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid var(--border); }
+    .badge.ok { border-color:#a5d6a7; }
+    .badge.warn { border-color:#ffe082; }
+    .badge.danger { border-color:#ef9a9a; }
     .sticky-bottom { position:fixed; bottom:12px; left:0; right:0; display:flex; justify-content:center; pointer-events:none; }
     .sticky-bottom > * { pointer-events:auto; }
     .hidden { display:none !important; }
-    .split { display:flex; gap:16px; flex-wrap:wrap; }
-    .grow { flex:1 1 320px; }
     .img { width:80px; height:80px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
     .bigimg { width:160px; height:160px; object-fit:cover; border-radius:10px; border:1px solid var(--border); background:#fafafa; }
     .hr { height:1px; background:var(--border); margin:12px 0; }
     dialog { border:0; border-radius:16px; padding:0; overflow:hidden; }
     dialog .dialog-body { padding:16px; }
     dialog::backdrop { background:rgba(0,0,0,0.3); }
-    .ok { color:var(--ok); } .warn { color:#b26a00; } .danger { color:var(--danger); }
+    .ok { color:var(--ok); } .warn { color:var(--warn); } .danger { color:var(--danger); }
+    .right { margin-left:auto; }
   </style>
 
   <!-- ZXing (UMD) for iPhone-friendly scanning -->
@@ -51,14 +60,16 @@
 </head>
 
 <body>
+  <!-- ================== HEADER ================== -->
   <header>
     <h1>Dental Inventory</h1>
     <div class="tabs" id="tabs"></div>
     <div class="right"><span id="whoami" class="muted"></span></div>
   </header>
 
+  <!-- ================== MAIN ================== -->
   <main>
-    <!-- AUTH -->
+    <!-- ===== AUTH ===== -->
     <section id="authSection" class="card hidden">
       <h3>Sign in</h3>
       <div class="row">
@@ -75,7 +86,7 @@
       <p class="muted">We use your email to link your clinic data.</p>
     </section>
 
-    <!-- TRANSACTIONS (default tab) -->
+    <!-- ===== TRANSACTIONS (default) ===== -->
     <section id="tab-transactions" class="card hidden">
       <h3>Transactions</h3>
       <div class="split">
@@ -87,7 +98,7 @@
                 <input id="trxBarcode" placeholder="Scan or type barcode…" inputmode="numeric" />
                 <button id="btnScan" class="ghost">Scan</button>
               </div>
-              <p class="muted">iPhone scanning supported via camera plugin.</p>
+              <p class="muted">iPhone scanning supported via camera plugin (ZXing).</p>
             </div>
             <div>
               <label>Kind</label>
@@ -125,14 +136,14 @@
           <div style="margin-top:12px;">
             <button id="btnSaveTrx" class="primary">Save Transaction</button>
           </div>
-
           <div class="hr"></div>
           <h4>Recent Transactions</h4>
           <div id="trxTableWrap" style="max-height:360px; overflow:auto;">
             <table id="trxTable">
               <thead><tr>
                 <th>When</th><th>Barcode</th><th>Name</th><th>Kind</th><th>Qty</th><th>Lot</th><th>Expiry</th><th>Note</th>
-              </tr></thead><tbody></tbody>
+              </tr></thead>
+              <tbody></tbody>
             </table>
           </div>
         </div>
@@ -185,7 +196,7 @@
       </div>
     </section>
 
-    <!-- CATALOGUE -->
+    <!-- ===== CATALOGUE ===== -->
     <section id="tab-catalogue" class="card hidden">
       <div class="split">
         <h3>Catalogue</h3>
@@ -199,12 +210,13 @@
         <table id="catTable">
           <thead><tr>
             <th>Photo</th><th>Barcode</th><th>Name</th><th>Unit</th><th>Pack</th><th>Min Qty</th><th>Stock</th>
-          </tr></thead><tbody></tbody>
+          </tr></thead>
+          <tbody></tbody>
         </table>
       </div>
     </section>
 
-    <!-- RE-ORDERING -->
+    <!-- ===== RE-ORDERING ===== -->
     <section id="tab-reorder" class="card hidden">
       <div class="split">
         <h3>Re-ordering</h3>
@@ -222,18 +234,19 @@
         <table id="reTable">
           <thead><tr>
             <th>Barcode</th><th>Name</th><th>Stock</th><th>Min Qty</th><th>Nearest Expiry</th><th>Status</th>
-          </tr></thead><tbody></tbody>
+          </tr></thead>
+          <tbody></tbody>
         </table>
       </div>
     </section>
 
-    <!-- REPORTS -->
+    <!-- ===== REPORTS ===== -->
     <section id="tab-reports" class="card hidden">
       <h3>Reports</h3>
       <div id="repSummary" class="row-3"></div>
     </section>
 
-    <!-- AI TEST (sandbox) -->
+    <!-- ===== AI TEST (Sandbox) ===== -->
     <section id="tab-lab" class="card hidden">
       <h3>AI Product Extract (Sandbox)</h3>
       <p class="muted">Upload or capture a packaging photo. We’ll OCR and suggest name/unit/pack size (and barcode if visible). This tab does not auto-save.</p>
@@ -269,7 +282,7 @@
       </div>
     </section>
 
-    <!-- DEBUG -->
+    <!-- ===== DEBUG ===== -->
     <section id="debugSection" class="card hidden">
       <h3>Debug Console</h3>
       <pre id="debugOut" style="white-space:pre-wrap;"></pre>
@@ -297,7 +310,7 @@
     <button id="btnToggleDebug" class="tab">Show Debug</button>
   </div>
 
-  <!-- APP SCRIPT -->
+  <!-- ================== APP SCRIPT ================== -->
   <script type="module">
     // ---------- CONFIG ----------
     const SUPABASE_URL  = 'https://sgjoadsefpcixvmthtfy.supabase.co';
@@ -311,6 +324,7 @@
     }
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
+    // ---------- UTIL ----------
     const $  = (q) => document.querySelector(q);
     const $$ = (q) => Array.from(document.querySelectorAll(q));
     const fmtDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
@@ -322,6 +336,10 @@
       const iso = new Date(yyyy, mm - 1, dd);
       return isNaN(iso) ? null : iso.toISOString().slice(0,10);
     };
+    function logDebug(obj) {
+      const el = $('#debugOut');
+      el.textContent = JSON.stringify(obj, null, 2) + '\n\n' + el.textContent;
+    }
 
     // ---------- TABS ----------
     const tabs = [
@@ -332,7 +350,6 @@
       { id:'lab',          label:'AI Test' },
     ];
     let activeTab = 'transactions';
-
     function renderTabs() {
       const el = $('#tabs'); el.innerHTML = '';
       for (const t of tabs) {
@@ -348,12 +365,9 @@
       for (const t of tabs) $('#tab-'+t.id).classList.toggle('hidden', t.id!==activeTab);
       $$('#tabs .tab').forEach(btn => btn.classList.toggle('active', btn.textContent === tabs.find(x=>x.id===activeTab)?.label));
     }
+    renderTabs();
 
     // ---------- DEBUG ----------
-    function logDebug(obj) {
-      const el = $('#debugOut');
-      el.textContent = JSON.stringify(obj, null, 2) + '\n\n' + el.textContent;
-    }
     $('#btnToggleDebug').addEventListener('click', () => {
       const hidden = $('#debugSection').classList.toggle('hidden');
       $('#btnToggleDebug').textContent = hidden ? 'Show Debug' : 'Hide Debug';
@@ -378,7 +392,6 @@
         $('#authSection').classList.add('hidden');
         $('#whoami').textContent = user.email ?? '';
         await ensureProfile(user);
-        renderTabs();
         await refreshAll();
       }
     }
@@ -392,7 +405,7 @@
       if (error) alert(error.message); else alert('Magic link sent!');
     });
 
-    // ---------- BARCODE SCANNER ----------
+    // ---------- ZXing Scanner ----------
     let codeReader;
     const scanModal = $('#scanModal');
     const videoEl   = $('#video');
@@ -424,17 +437,19 @@
       return pub.publicUrl;
     }
 
-    // ---------- DATA ----------
-    let cacheItems = [];
-    let cacheLots  = [];
+    // ---------- DATA CACHE ----------
+    let cacheItems = []; // {id, barcode, name, unit, pack_size, min_qty, photo_url, stock_qty}
+    let cacheLots  = []; // for expiry nearest
 
     async function fetchStockPerItem() {
       const { data, error } = await supabase.from('v_stock_per_item').select('*').order('name', { ascending: true });
-      if (error) throw error; return data;
+      if (error) throw error;
+      return data;
     }
     async function fetchLots() {
       const { data, error } = await supabase.from('v_stock_per_lot').select('*');
-      if (error) throw error; return data;
+      if (error) throw error;
+      return data;
     }
     function nearestExpiryForItem(itemId) {
       const lots = cacheLots.filter(l => l.item_id === itemId && l.expiry_date);
@@ -485,16 +500,11 @@
       const { data, error } = await supabase.functions.invoke('ai_guess_product', { body: { image_url } });
       if (error) { alert('AI suggest failed: ' + (error.message || JSON.stringify(error))); return; }
 
-      if (data?.name && !$('#prevNameEdit').value) {
-        $('#prevNameEdit').value = data.name;
-        $('#prevName').textContent = data.name;
-      }
+      if (data?.name && !$('#prevNameEdit').value) { $('#prevNameEdit').value = data.name; $('#prevName').textContent = data.name; }
       if (data?.unit && !$('#prevUnit').value) $('#prevUnit').value = data.unit;
       if (data?.pack_size && !$('#prevPack').value) $('#prevPack').value = data.pack_size;
-      if (data?.barcode && !$('#trxBarcode').value) {
-        $('#trxBarcode').value = data.barcode;
-        $('#prevBarcode').textContent = data.barcode;
-      }
+      if (data?.barcode && !$('#trxBarcode').value) { $('#trxBarcode').value = data.barcode; $('#prevBarcode').textContent = data.barcode; }
+
       try {
         await supabase.from('product_ai_suggestions').insert({
           image_url,
@@ -633,7 +643,7 @@
       $('#trxBarcode').focus();
     });
 
-    // ---------- RE-ORDERING ----------
+    // ---------- RE-ORDER ----------
     function renderReorder() {
       const items = cacheItems.map(it => ({ ...it, nearestExpiry: nearestExpiryForItem(it.id) }));
       const soon = new Date(); soon.setMonth(soon.getMonth() + 1);
@@ -685,6 +695,7 @@
       const totalSkus = cacheItems.length;
       const totalOnHand = cacheItems.reduce((s,x) => s + Number(x.stock_qty||0), 0);
       const belowMin = cacheItems.filter(x => Number(x.stock_qty||0) < Number(x.min_qty||0)).length;
+
       $('#repSummary').innerHTML = `
         <div class="card"><div class="muted">SKUs</div><div style="font-size:24px; font-weight:700;">${totalSkus}</div></div>
         <div class="card"><div class="muted">Total On Hand</div><div style="font-size:24px; font-weight:700;">${totalOnHand}</div></div>
@@ -763,6 +774,7 @@
       }
       alert('Applied to Item Preview (not saved yet).');
     });
+
     $('#labCreateDraft')?.addEventListener('click', async () => {
       const name = (labName.textContent !== '—') ? labName.textContent : null;
       if (!name) return alert('No product name to create a draft.');
